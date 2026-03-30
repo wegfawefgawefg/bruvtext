@@ -1,19 +1,13 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "bruvtext/bruvtext.h"
 
 namespace bruvtext
 {
-constexpr std::uint32_t kMaxQueuedTextItems = 256;
-constexpr std::uint32_t kMaxShapedRuns = 256;
-constexpr std::uint32_t kMaxShapedGlyphs = 8192;
-constexpr std::uint32_t kMaxDrawGlyphs = kMaxShapedGlyphs;
-constexpr std::uint32_t kMaxDrawBatches = 512;
-
 struct QueuedText
 {
     bool active = false;
@@ -84,16 +78,11 @@ struct DrawBatch
 
 struct FrameState
 {
-    std::array<QueuedText, kMaxQueuedTextItems> queuedText = {};
-    std::uint32_t queuedTextCount = 0;
-    std::array<ShapedRun, kMaxShapedRuns> shapedRuns = {};
-    std::uint32_t shapedRunCount = 0;
-    std::array<ShapedGlyph, kMaxShapedGlyphs> shapedGlyphs = {};
-    std::uint32_t shapedGlyphCount = 0;
-    std::array<DrawGlyph, kMaxDrawGlyphs> drawGlyphs = {};
-    std::uint32_t drawGlyphCount = 0;
-    std::array<DrawBatch, kMaxDrawBatches> drawBatches = {};
-    std::uint32_t drawBatchCount = 0;
+    std::vector<QueuedText> queuedText = {};
+    std::vector<ShapedRun> shapedRuns = {};
+    std::vector<ShapedGlyph> shapedGlyphs = {};
+    std::vector<DrawGlyph> drawGlyphs = {};
+    std::vector<DrawBatch> drawBatches = {};
 };
 
 void BeginFrame(FrameState& frame);

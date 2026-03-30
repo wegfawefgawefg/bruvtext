@@ -16,18 +16,50 @@ std::uint32_t ClampPixelSize(float size)
     const float clamped = std::clamp(rounded, 8.0f, 128.0f);
     return static_cast<std::uint32_t>(clamped);
 }
+
+void AppendCachedRun(
+    FrameState& frame,
+    const QueuedText& item,
+    std::uint32_t rasterPixelSize,
+    const CachedShapedRun& cached)
+{
+    const std::uint32_t firstGlyph = static_cast<std::uint32_t>(frame.shapedGlyphs.size());
+    frame.shapedRuns.emplace_back();
+    ShapedRun& run = frame.shapedRuns.back();
+    run.active = true;
+    run.font = item.font;
+    run.text = item.text;
+    run.position = item.position;
+    run.pixelSize = item.pixelSize;
+    run.scale = item.scale;
+    run.color = item.color;
+    run.rasterPixelSize = rasterPixelSize;
+    run.firstGlyph = firstGlyph;
+    run.glyphCount = static_cast<std::uint32_t>(cached.glyphs.size());
+
+    frame.shapedGlyphs.reserve(frame.shapedGlyphs.size() + cached.glyphs.size());
+    for (const ShapedGlyph& cachedGlyph : cached.glyphs)
+    {
+        frame.shapedGlyphs.push_back(cachedGlyph);
+        ShapedGlyph& out = frame.shapedGlyphs.back();
+        out.active = true;
+        out.x += item.position.x;
+        out.y += item.position.y;
+    }
+}
 }
 
 bool ShapeQueuedText(
     FrameState& frame,
-    const FontRegistry& fonts)
+    const FontRegistry& fonts,
+    ShapeCache& cache)
 {
-    frame.shapedRunCount = 0;
-    frame.shapedGlyphCount = 0;
+    frame.shapedRuns.clear();
+    frame.shapedGlyphs.clear();
+    frame.shapedRuns.reserve(frame.queuedText.size());
 
-    for (std::uint32_t i = 0; i < frame.queuedTextCount; ++i)
+    for (const QueuedText& item : frame.queuedText)
     {
-        const QueuedText& item = frame.queuedText[i];
         if (!item.active)
         {
             continue;
@@ -39,12 +71,14 @@ bool ShapeQueuedText(
             continue;
         }
 
-        if (frame.shapedRunCount >= frame.shapedRuns.size())
+        const std::uint32_t rasterPixelSize = ClampPixelSize(item.pixelSize);
+        if (const CachedShapedRun* cached =
+                FindCachedShapedRun(cache, item.font, rasterPixelSize, item.text))
         {
-            return false;
+            AppendCachedRun(frame, item, rasterPixelSize, *cached);
+            continue;
         }
 
-        const std::uint32_t rasterPixelSize = ClampPixelSize(item.pixelSize);
         FT_Set_Pixel_Sizes(font->face, 0, rasterPixelSize);
         hb_ft_font_changed(font->hbFont);
         hb_ft_font_set_load_flags(font->hbFont, kFtLoadFlags);
@@ -69,29 +103,18 @@ bool ShapeQueuedText(
         hb_glyph_info_t* glyphInfo = hb_buffer_get_glyph_infos(buffer, &glyphCount);
         hb_glyph_position_t* glyphPos = hb_buffer_get_glyph_positions(buffer, &glyphCount);
 
-        if (frame.shapedGlyphCount + glyphCount > frame.shapedGlyphs.size())
-        {
-            hb_buffer_destroy(buffer);
-            return false;
-        }
+        CachedShapedRun cachedRun{};
+        cachedRun.font = item.font;
+        cachedRun.rasterPixelSize = rasterPixelSize;
+        cachedRun.text = item.text;
+        cachedRun.glyphs.reserve(glyphCount);
 
-        ShapedRun& run = frame.shapedRuns[frame.shapedRunCount++];
-        run.active = true;
-        run.font = item.font;
-        run.text = item.text;
-        run.position = item.position;
-        run.pixelSize = item.pixelSize;
-        run.scale = item.scale;
-        run.color = item.color;
-        run.rasterPixelSize = rasterPixelSize;
-        run.firstGlyph = frame.shapedGlyphCount;
-        run.glyphCount = glyphCount;
-
-        float penX = item.position.x;
-        float penY = item.position.y;
+        float penX = 0.0f;
+        float penY = 0.0f;
         for (unsigned int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex)
         {
-            ShapedGlyph& out = frame.shapedGlyphs[frame.shapedGlyphCount++];
+            cachedRun.glyphs.emplace_back();
+            ShapedGlyph& out = cachedRun.glyphs.back();
             out.active = true;
             out.glyphIndex = glyphInfo[glyphIndex].codepoint;
             out.cluster = glyphInfo[glyphIndex].cluster;
@@ -122,6 +145,9 @@ bool ShapeQueuedText(
         }
 
         hb_buffer_destroy(buffer);
+        const CachedShapedRun& stored =
+            StoreCachedShapedRun(cache, std::move(cachedRun));
+        AppendCachedRun(frame, item, rasterPixelSize, stored);
     }
 
     return true;

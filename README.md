@@ -15,6 +15,34 @@ The goal is not to be a giant UI framework. The goal is to give Vulkan projects
 an explicit, debuggable text stack that can handle major real-world languages
 without rerasterizing whole strings every frame.
 
+## Quick Start
+
+Vendor the repo, add it to your build, then use the normal text API:
+
+```cmake
+add_subdirectory(third_party/bruvtext)
+target_link_libraries(my_app PRIVATE bruvtext)
+```
+
+```cpp
+bruvtext::BeginFrame(text);
+bruvtext::DrawText(text, font, "hello", 32.0f, 64.0f, 20.0f);
+bruvtext::EndFrame(text);
+```
+
+Your renderer still owns Vulkan objects and submission. `bruvtext` owns:
+
+- shaping
+- glyph caching
+- atlas page contents
+- draw glyph / draw batch generation
+
+See:
+
+- [Integration Quickstart](docs/integration-quickstart.md)
+- [Vendoring Guide](docs/vendoring.md)
+- [Reference Renderer](docs/reference-renderer.md)
+
 ## Goals
 
 - vendorable into private or public Vulkan projects
@@ -88,6 +116,19 @@ The demo should make it easy to answer:
 - did the atlas cache work
 - did the glyph positioning work
 - does the final Vulkan output actually look correct
+
+## Demo Assets
+
+This repo includes demo fonts and demo text so the bundled showcase and
+benchmark work out of the box.
+
+Those files are:
+
+- for the demo
+- not required by the core library
+- not required by host projects at runtime unless they choose to use them
+
+Real integrations are expected to register and ship their own fonts.
 
 ## Language Test Content
 
@@ -197,7 +238,13 @@ host project to build a text system from scratch.
 
 ## Documentation
 
+- [Docs Home](docs/index.md)
+- [Integration Quickstart](docs/integration-quickstart.md)
+- [Vendoring Guide](docs/vendoring.md)
 - [Library Spec](docs/library-spec.md)
 - [V1 Remaining Scope](docs/v1-remaining-scope.md)
 - [Vulkan Integration](docs/vulkan-integration.md)
-- [GPU Renderer Gap](docs/gpu-renderer-gap.md)
+- [Reference Renderer](docs/reference-renderer.md)
+- [Benchmark Plan](docs/benchmark-plan.md)
+- [Performance Notes](docs/performance-notes.md)
+- [Docs Polish Plan](docs/docs-polish-plan.md)

@@ -43,6 +43,7 @@ add_library(bruvtext STATIC
     src/draw_list.cpp
     src/frame_state.cpp
     src/font_registry.cpp
+    src/shape_cache.cpp
     src/shaping.cpp
 )
 

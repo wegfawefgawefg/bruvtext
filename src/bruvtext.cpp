@@ -1,9 +1,9 @@
 #include "bruvtext/bruvtext.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <filesystem>
+#include <vector>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -13,6 +13,7 @@
 #include "draw_list.h"
 #include "frame_state.h"
 #include "font_registry.h"
+#include "shape_cache.h"
 #include "shaping.h"
 
 namespace bruvtext
@@ -48,18 +49,19 @@ struct ContextImpl : Context
     FontRegistry fonts;
     FrameState frame;
     AtlasCache atlas;
-    std::array<QueuedTextView, kMaxQueuedTextItems> queuedTextView = {};
-    std::array<ShapedGlyphView, kMaxShapedGlyphs> shapedGlyphView = {};
-    std::array<ShapedRunView, kMaxShapedRuns> shapedRunView = {};
-    std::array<AtlasPageView, kMaxAtlasPages> atlasPageView = {};
-    std::array<DrawGlyphView, kMaxDrawGlyphs> drawGlyphView = {};
-    std::array<DrawBatchView, kMaxDrawBatches> drawBatchView = {};
+    ShapeCache shapeCache;
+    std::vector<QueuedTextView> queuedTextView = {};
+    std::vector<ShapedGlyphView> shapedGlyphView = {};
+    std::vector<ShapedRunView> shapedRunView = {};
+    std::vector<AtlasPageView> atlasPageView = {};
+    std::vector<DrawGlyphView> drawGlyphView = {};
+    std::vector<DrawBatchView> drawBatchView = {};
 };
 
 TextSize MeasureQueuedText(FrameState& frame)
 {
     TextSize result{};
-    if (frame.shapedRunCount == 0)
+    if (frame.shapedRuns.empty())
     {
         return result;
     }
@@ -70,9 +72,8 @@ TextSize MeasureQueuedText(FrameState& frame)
     float maxY = 0.0f;
     bool anyGlyph = false;
 
-    for (std::uint32_t runIndex = 0; runIndex < frame.shapedRunCount; ++runIndex)
+    for (const ShapedRun& run : frame.shapedRuns)
     {
-        const ShapedRun& run = frame.shapedRuns[runIndex];
         if (!run.active)
         {
             continue;
@@ -153,6 +154,7 @@ Context* CreateContext(const CreateInfo& createInfo)
         return nullptr;
     }
     InitializeAtlasCache(context->atlas);
+    InitializeShapeCache(context->shapeCache);
     return context;
 }
 
@@ -249,7 +251,7 @@ TextSize MeasureTextEx(Context& context, FontId font, std::string_view text, flo
     {
         return {};
     }
-    if (!ShapeQueuedText(frame, impl.fonts))
+    if (!ShapeQueuedText(frame, impl.fonts, impl.shapeCache))
     {
         return {};
     }
@@ -280,7 +282,7 @@ float MeasureLineAdvance(Context& context, FontId font, float pixelSize, float s
 bool EndFrame(Context& context)
 {
     auto& impl = static_cast<ContextImpl&>(context);
-    if (!ShapeQueuedText(impl.frame, impl.fonts))
+    if (!ShapeQueuedText(impl.frame, impl.fonts, impl.shapeCache))
     {
         return false;
     }
@@ -294,13 +296,14 @@ bool EndFrame(Context& context)
 std::size_t GetQueuedTextCount(const Context& context)
 {
     const auto& impl = static_cast<const ContextImpl&>(context);
-    return impl.frame.queuedTextCount;
+    return impl.frame.queuedText.size();
 }
 
 const QueuedTextView* GetQueuedTextItems(const Context& context)
 {
     auto& impl = const_cast<ContextImpl&>(static_cast<const ContextImpl&>(context));
-    for (std::uint32_t i = 0; i < impl.frame.queuedTextCount; ++i)
+    impl.queuedTextView.resize(impl.frame.queuedText.size());
+    for (std::size_t i = 0; i < impl.frame.queuedText.size(); ++i)
     {
         const QueuedText& source = impl.frame.queuedText[i];
         QueuedTextView& view = impl.queuedTextView[i];
@@ -317,13 +320,14 @@ const QueuedTextView* GetQueuedTextItems(const Context& context)
 std::size_t GetShapedRunCount(const Context& context)
 {
     const auto& impl = static_cast<const ContextImpl&>(context);
-    return impl.frame.shapedRunCount;
+    return impl.frame.shapedRuns.size();
 }
 
 const ShapedRunView* GetShapedRuns(const Context& context)
 {
     auto& impl = const_cast<ContextImpl&>(static_cast<const ContextImpl&>(context));
-    for (std::uint32_t i = 0; i < impl.frame.shapedGlyphCount; ++i)
+    impl.shapedGlyphView.resize(impl.frame.shapedGlyphs.size());
+    for (std::size_t i = 0; i < impl.frame.shapedGlyphs.size(); ++i)
     {
         const ShapedGlyph& source = impl.frame.shapedGlyphs[i];
         ShapedGlyphView& view = impl.shapedGlyphView[i];
@@ -334,7 +338,8 @@ const ShapedRunView* GetShapedRuns(const Context& context)
         view.advanceX = source.advanceX;
         view.advanceY = source.advanceY;
     }
-    for (std::uint32_t i = 0; i < impl.frame.shapedRunCount; ++i)
+    impl.shapedRunView.resize(impl.frame.shapedRuns.size());
+    for (std::size_t i = 0; i < impl.frame.shapedRuns.size(); ++i)
     {
         const ShapedRun& source = impl.frame.shapedRuns[i];
         ShapedRunView& view = impl.shapedRunView[i];
@@ -365,6 +370,7 @@ std::size_t GetAtlasPageCount(const Context& context)
 const AtlasPageView* GetAtlasPages(const Context& context)
 {
     auto& impl = const_cast<ContextImpl&>(static_cast<const ContextImpl&>(context));
+    impl.atlasPageView.resize(impl.atlas.pageCount);
     for (std::uint32_t i = 0; i < impl.atlas.pageCount; ++i)
     {
         const AtlasPage& source = impl.atlas.pages[i];
@@ -390,13 +396,14 @@ void ClearAtlasDirtyFlags(Context& context)
 std::size_t GetDrawGlyphCount(const Context& context)
 {
     const auto& impl = static_cast<const ContextImpl&>(context);
-    return impl.frame.drawGlyphCount;
+    return impl.frame.drawGlyphs.size();
 }
 
 const DrawGlyphView* GetDrawGlyphs(const Context& context)
 {
     auto& impl = const_cast<ContextImpl&>(static_cast<const ContextImpl&>(context));
-    for (std::uint32_t i = 0; i < impl.frame.drawGlyphCount; ++i)
+    impl.drawGlyphView.resize(impl.frame.drawGlyphs.size());
+    for (std::size_t i = 0; i < impl.frame.drawGlyphs.size(); ++i)
     {
         const DrawGlyph& source = impl.frame.drawGlyphs[i];
         DrawGlyphView& view = impl.drawGlyphView[i];
@@ -422,13 +429,14 @@ const DrawGlyphView* GetDrawGlyphs(const Context& context)
 std::size_t GetDrawBatchCount(const Context& context)
 {
     const auto& impl = static_cast<const ContextImpl&>(context);
-    return impl.frame.drawBatchCount;
+    return impl.frame.drawBatches.size();
 }
 
 const DrawBatchView* GetDrawBatches(const Context& context)
 {
     auto& impl = const_cast<ContextImpl&>(static_cast<const ContextImpl&>(context));
-    for (std::uint32_t i = 0; i < impl.frame.drawBatchCount; ++i)
+    impl.drawBatchView.resize(impl.frame.drawBatches.size());
+    for (std::size_t i = 0; i < impl.frame.drawBatches.size(); ++i)
     {
         const DrawBatch& source = impl.frame.drawBatches[i];
         DrawBatchView& view = impl.drawBatchView[i];

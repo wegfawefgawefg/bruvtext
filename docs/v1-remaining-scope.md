@@ -18,16 +18,14 @@ Already in place:
 
 Not yet considered done:
 
-- public API still needs a final close-out pass
 - packaging and integration docs need a practical pass
 - tests are light
 
 ## Remaining V1 Work
 
-1. Public API close-out
-2. Packaging and integration polish
-3. Minimal smoke tests and regression checks
-4. Docs pass for actual usage
+1. Packaging and integration polish
+2. Minimal smoke tests and regression checks
+3. Docs pass for actual usage
 
 ## Explicitly Out Of Scope For V1
 
@@ -44,7 +42,7 @@ These are not blockers for the first usable release:
 
 ### 1. Public API close-out
 
-This is real v1 work.
+This is effectively done for the current v1 target.
 
 The public surface should feel normal to users of libraries like raylib and
 SDL_ttf:
@@ -95,14 +93,25 @@ At minimum we want:
 - measurement sanity checks
 - multilingual showcase regression coverage
 
-### 6. Packaging and integration polish
+### 6. Benchmark
+
+This is now part of the demo direction.
+
+That mode should help answer:
+
+- what happens with many text runs
+- what happens with many glyphs
+- what happens with multilingual content
+- what happens when raster sizes churn
+
+### 7. Packaging and integration polish
 
 This is important.
 
 The whole point of `bruvtext` is that another Vulkan project can vendor it and
 use it without inventing a text renderer from scratch.
 
-### 7. Alignment and layout helpers
+### 8. Alignment and layout helpers
 
 Optional.
 

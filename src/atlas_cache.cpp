@@ -455,9 +455,8 @@ bool CacheShapedGlyphs(
 {
     ++cache.useTick;
 
-    for (std::uint32_t runIndex = 0; runIndex < frame.shapedRunCount; ++runIndex)
+    for (const ShapedRun& run : frame.shapedRuns)
     {
-        const ShapedRun& run = frame.shapedRuns[runIndex];
         if (!run.active)
         {
             continue;

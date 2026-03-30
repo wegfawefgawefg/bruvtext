@@ -52,6 +52,13 @@ struct AtlasGpuPage
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 };
 
+struct GpuDrawBatch
+{
+    std::uint32_t atlasPage = 0;
+    std::uint32_t firstVertex = 0;
+    std::uint32_t vertexCount = 0;
+};
+
 struct VulkanDemo
 {
     SDL_Window* window = nullptr;
@@ -81,6 +88,7 @@ struct VulkanDemo
     VkDeviceMemory vertexMemory = VK_NULL_HANDLE;
     std::size_t vertexBufferSize = 0;
     std::vector<TextVertex> cpuVertices;
+    std::vector<GpuDrawBatch> cpuBatches;
     VkBuffer atlasUploadBuffer = VK_NULL_HANDLE;
     VkDeviceMemory atlasUploadMemory = VK_NULL_HANDLE;
     std::size_t atlasUploadBufferSize = 0;
@@ -93,5 +101,9 @@ struct VulkanDemo
 
 bool InitializeVulkanDemo(VulkanDemo& demo, SDL_Window* window);
 void ShutdownVulkanDemo(VulkanDemo& demo);
-bool RenderVulkanDemoFrame(VulkanDemo& demo, bruvtext::Context& textContext, float timeSeconds);
+bool RenderVulkanDemoFrame(
+    VulkanDemo& demo,
+    bruvtext::Context& textContext,
+    float timeSeconds,
+    bool sortByAtlasPage);
 }

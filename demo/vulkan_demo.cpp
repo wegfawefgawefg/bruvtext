@@ -854,15 +854,75 @@ void AppendGlyphVertices(
     outVertices.push_back(v3);
 }
 
-bool BuildVertexBuffer(VulkanDemo& demo, const bruvtext::Context& textContext)
+bool BuildVertexBuffer(
+    VulkanDemo& demo,
+    const bruvtext::Context& textContext,
+    bool sortByAtlasPage)
 {
-    demo.cpuVertices.clear();
-    demo.cpuVertices.reserve(bruvtext::GetDrawGlyphCount(textContext) * 6);
-
+    const std::size_t glyphCount = bruvtext::GetDrawGlyphCount(textContext);
     const bruvtext::DrawGlyphView* glyphs = bruvtext::GetDrawGlyphs(textContext);
-    for (std::size_t i = 0; i < bruvtext::GetDrawGlyphCount(textContext); ++i)
+    const std::size_t atlasPageCount = bruvtext::GetAtlasPageCount(textContext);
+
+    demo.cpuVertices.clear();
+    demo.cpuBatches.clear();
+    demo.cpuVertices.reserve(glyphCount * 6);
+
+    auto appendBatchRange =
+        [&](std::uint32_t atlasPage, const std::vector<std::size_t>& indices)
     {
-        AppendGlyphVertices(demo.cpuVertices, glyphs[i], demo.swapchainExtent.width, demo.swapchainExtent.height);
+        if (indices.empty())
+        {
+            return;
+        }
+
+        GpuDrawBatch batch{};
+        batch.atlasPage = atlasPage;
+        batch.firstVertex = static_cast<std::uint32_t>(demo.cpuVertices.size());
+        batch.vertexCount = static_cast<std::uint32_t>(indices.size() * 6);
+        demo.cpuBatches.push_back(batch);
+
+        for (std::size_t glyphIndex : indices)
+        {
+            AppendGlyphVertices(
+                demo.cpuVertices,
+                glyphs[glyphIndex],
+                demo.swapchainExtent.width,
+                demo.swapchainExtent.height);
+        }
+    };
+
+    if (!sortByAtlasPage)
+    {
+        const bruvtext::DrawBatchView* batches = bruvtext::GetDrawBatches(textContext);
+        for (std::size_t batchIndex = 0; batchIndex < bruvtext::GetDrawBatchCount(textContext); ++batchIndex)
+        {
+            const bruvtext::DrawBatchView& batchView = batches[batchIndex];
+            std::vector<std::size_t> indices;
+            indices.reserve(batchView.glyphCount);
+            for (std::size_t glyphOffset = 0; glyphOffset < batchView.glyphCount; ++glyphOffset)
+            {
+                indices.push_back(static_cast<std::size_t>(batchView.firstGlyph) + glyphOffset);
+            }
+            appendBatchRange(batchView.atlasPage, indices);
+        }
+    }
+    else
+    {
+        std::vector<std::vector<std::size_t>> glyphBins(atlasPageCount);
+        for (std::size_t glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex)
+        {
+            const std::uint32_t atlasPage = glyphs[glyphIndex].atlasPage;
+            if (atlasPage >= glyphBins.size())
+            {
+                continue;
+            }
+            glyphBins[atlasPage].push_back(glyphIndex);
+        }
+
+        for (std::uint32_t atlasPage = 0; atlasPage < glyphBins.size(); ++atlasPage)
+        {
+            appendBatchRange(atlasPage, glyphBins[atlasPage]);
+        }
     }
 
     const std::size_t neededBytes = demo.cpuVertices.size() * sizeof(TextVertex);
@@ -1068,10 +1128,8 @@ bool RecordRenderPass(
     const VkDeviceSize vertexOffset = 0;
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &demo.vertexBuffer, &vertexOffset);
 
-    const bruvtext::DrawBatchView* batches = bruvtext::GetDrawBatches(textContext);
-    for (std::size_t batchIndex = 0; batchIndex < bruvtext::GetDrawBatchCount(textContext); ++batchIndex)
+    for (const GpuDrawBatch& batch : demo.cpuBatches)
     {
-        const bruvtext::DrawBatchView& batch = batches[batchIndex];
         if (batch.atlasPage >= demo.atlasPages.size())
         {
             continue;
@@ -1093,9 +1151,9 @@ bool RecordRenderPass(
             nullptr);
         vkCmdDraw(
             commandBuffer,
-            batch.glyphCount * 6,
+            batch.vertexCount,
             1,
-            batch.firstGlyph * 6,
+            batch.firstVertex,
             0);
     }
 
@@ -1327,7 +1385,11 @@ void ShutdownVulkanDemo(VulkanDemo& demo)
     demo = {};
 }
 
-bool RenderVulkanDemoFrame(VulkanDemo& demo, bruvtext::Context& textContext, float timeSeconds)
+bool RenderVulkanDemoFrame(
+    VulkanDemo& demo,
+    bruvtext::Context& textContext,
+    float timeSeconds,
+    bool sortByAtlasPage)
 {
     if (demo.device == VK_NULL_HANDLE || demo.swapchain == VK_NULL_HANDLE)
     {
@@ -1343,7 +1405,7 @@ bool RenderVulkanDemoFrame(VulkanDemo& demo, bruvtext::Context& textContext, flo
         return true;
     }
 
-    if (!BuildVertexBuffer(demo, textContext))
+    if (!BuildVertexBuffer(demo, textContext, sortByAtlasPage))
     {
         return false;
     }

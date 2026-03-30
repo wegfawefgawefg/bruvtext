@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext</title>
+    <meta
+      name="description"
+      content="bruvtext is a boring vendorable Vulkan text library with FreeType, HarfBuzz, GPU atlas rendering, a reference Vulkan renderer, and multilingual demo coverage." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: "#0f141d",
+              panel: "#161d28",
+              panel2: "#1b2431",
+              line: "#2c3c4d",
+              cream: "#efe7da",
+              sand: "#cbb89d",
+              blue: "#7cb7ff",
+              mint: "#85d7c6"
+            },
+            boxShadow: {
+              panel: "0 24px 80px rgba(0, 0, 0, 0.35)"
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(124, 183, 255, 0.14), transparent 28%),
+          radial-gradient(circle at top right, rgba(133, 215, 198, 0.12), transparent 24%),
+          linear-gradient(180deg, #0f141d 0%, #101722 100%);
+      }
+      .code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-cream">
+    <div class="mx-auto max-w-7xl px-6 py-8 md:px-10 md:py-12">
+      <header class="mb-8 flex flex-col gap-6 md:mb-14 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div class="mb-3 inline-flex items-center gap-3 rounded-full border border-line bg-panel/70 px-4 py-2 text-sm text-sand">
+            <span class="h-2.5 w-2.5 rounded-full bg-mint"></span>
+            FreeType + HarfBuzz + Vulkan
+          </div>
+          <h1 class="text-5xl font-semibold tracking-tight md:text-7xl">bruvtext</h1>
+          <p class="mt-4 max-w-3xl text-lg leading-8 text-slate-300 md:text-xl">
+            Boring Rudimentary Vulkan Text. A vendorable text library for Vulkan
+            projects with a normal draw/measure API, cached glyph atlases, and a
+            reference GPU renderer.
+          </p>
+        </div>
+        <nav class="flex flex-wrap gap-3 text-sm">
+          <a class="rounded-full border border-line bg-panel px-4 py-2 text-slate-200 transition hover:border-blue hover:text-white" href="https://github.com/wegfawefgawefg/bruvtext">GitHub</a>
+          <a class="rounded-full border border-line bg-panel px-4 py-2 text-slate-200 transition hover:border-blue hover:text-white" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/README.md">README</a>
+          <a class="rounded-full border border-line bg-panel px-4 py-2 text-slate-200 transition hover:border-blue hover:text-white" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/integration-quickstart.md">Quickstart</a>
+        </nav>
+      </header>
+
+      <section class="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div class="overflow-hidden rounded-[2rem] border border-line bg-panel shadow-panel">
+          <img
+            src="./assets/splash.png"
+            alt="bruvtext splash"
+            class="h-full w-full object-cover" />
+        </div>
+        <div class="grid gap-6">
+          <div class="rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+            <p class="text-sm uppercase tracking-[0.25em] text-sand">What It Is</p>
+            <ul class="mt-5 space-y-4 text-slate-200">
+              <li>Vendored library, not a UI framework.</li>
+              <li>Shape with HarfBuzz, rasterize with FreeType.</li>
+              <li>Render from cached glyph atlases on the GPU.</li>
+              <li>Ship your own fonts; demo fonts stay demo-only.</li>
+            </ul>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="rounded-[1.5rem] border border-line bg-panel2 px-5 py-6">
+              <p class="text-sm uppercase tracking-[0.22em] text-sand">API</p>
+              <p class="mt-3 text-3xl font-semibold">DrawText</p>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Simple draw, explicit draw-ex, and measurement without public cache knobs.</p>
+            </div>
+            <div class="rounded-[1.5rem] border border-line bg-panel2 px-5 py-6">
+              <p class="text-sm uppercase tracking-[0.22em] text-sand">Coverage</p>
+              <p class="mt-3 text-3xl font-semibold">19 languages</p>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Latin, CJK, Arabic, and Devanagari demo coverage in the bundled showcase.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <div class="rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+          <p class="text-sm uppercase tracking-[0.25em] text-sand">Quick Start</p>
+          <div class="mt-5 space-y-5">
+            <div class="rounded-2xl bg-ink/70 p-4">
+              <p class="mb-3 text-sm text-slate-400">CMake</p>
+              <pre class="code whitespace-pre-wrap text-sm leading-7 text-slate-100">add_subdirectory(third_party/bruvtext)
+target_link_libraries(my_app PRIVATE bruvtext)</pre>
+            </div>
+            <div class="rounded-2xl bg-ink/70 p-4">
+              <p class="mb-3 text-sm text-slate-400">App code</p>
+              <pre class="code whitespace-pre-wrap text-sm leading-7 text-slate-100">bruvtext::BeginFrame(text);
+bruvtext::DrawText(text, font, "hello", 32.0f, 64.0f, 20.0f);
+bruvtext::EndFrame(text);</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+          <p class="text-sm uppercase tracking-[0.25em] text-sand">Ownership Split</p>
+          <div class="mt-5 grid gap-4 md:grid-cols-2">
+            <div class="rounded-2xl bg-panel2 px-5 py-5">
+              <h2 class="text-xl font-semibold">bruvtext owns</h2>
+              <ul class="mt-4 space-y-3 text-slate-300">
+                <li>font shaping</li>
+                <li>glyph caches</li>
+                <li>atlas page contents</li>
+                <li>draw glyph / draw batch data</li>
+              </ul>
+            </div>
+            <div class="rounded-2xl bg-panel2 px-5 py-5">
+              <h2 class="text-xl font-semibold">Host renderer owns</h2>
+              <ul class="mt-4 space-y-3 text-slate-300">
+                <li>Vulkan images and buffers</li>
+                <li>atlas uploads</li>
+                <li>descriptor sets</li>
+                <li>draw submission</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="mt-10 rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p class="text-sm uppercase tracking-[0.25em] text-sand">Documentation</p>
+            <h2 class="mt-2 text-3xl font-semibold">Use the repo, not guesswork</h2>
+          </div>
+          <p class="max-w-2xl text-sm leading-7 text-slate-300">
+            The site stays lightweight. The detailed technical docs remain in the repo and are linked directly.
+          </p>
+        </div>
+        <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/integration-quickstart.md">
+            <p class="text-lg font-semibold">Integration Quickstart</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Minimal host flow, from context creation to atlas upload and draw submission.</p>
+          </a>
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/vendoring.md">
+            <p class="text-lg font-semibold">Vendoring Guide</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">How to bring the repo into another project without treating it like generated junk.</p>
+          </a>
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/reference-renderer.md">
+            <p class="text-lg font-semibold">Reference Renderer</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">The bundled demo renderer is the boring Vulkan example users can copy and adapt.</p>
+          </a>
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/vulkan-integration.md">
+            <p class="text-lg font-semibold">Vulkan Integration</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Low-opinion renderer contract and GPU resource ownership split.</p>
+          </a>
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/performance-notes.md">
+            <p class="text-lg font-semibold">Performance Notes</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">What the benchmark really means, and where the remaining headroom still lives.</p>
+          </a>
+          <a class="rounded-2xl border border-line bg-panel2 px-5 py-5 transition hover:border-blue" href="https://github.com/wegfawefgawefg/bruvtext/blob/master/docs/benchmark-plan.md">
+            <p class="text-lg font-semibold">Benchmark Plan</p>
+            <p class="mt-2 text-sm leading-7 text-slate-300">Stress mode intent, benchmark CLI, and what the benchmark should prove.</p>
+          </a>
+        </div>
+      </section>
+
+      <section class="mt-10 grid gap-6 lg:grid-cols-[1fr_1fr]">
+        <div class="rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+          <p class="text-sm uppercase tracking-[0.25em] text-sand">Current Shape</p>
+          <ul class="mt-5 space-y-4 text-slate-300">
+            <li>Raylib-style public API with draw and measure.</li>
+            <li>Exact-size glyph buckets with lazy cache growth.</li>
+            <li>Internal shaped-run cache for repeated strings.</li>
+            <li>Reference benchmark and showcase inside the bundled demo.</li>
+          </ul>
+        </div>
+        <div class="rounded-[2rem] border border-line bg-panel px-6 py-7 shadow-panel">
+          <p class="text-sm uppercase tracking-[0.25em] text-sand">What It Is Not</p>
+          <ul class="mt-5 space-y-4 text-slate-300">
+            <li>Not a layout engine.</li>
+            <li>Not a rich text editor.</li>
+            <li>Not a mandatory font pack.</li>
+            <li>Not a framework that takes over your renderer.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

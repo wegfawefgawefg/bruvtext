@@ -22,6 +22,7 @@ constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
 constexpr const char* kX11DialogWindowType = "_NET_WM_WINDOW_TYPE_DIALOG";
 constexpr const char* kArtifactsAtlasDir = "artifacts/text_atlas_cache";
+constexpr const char* kArtifactsBenchmarkDir = "artifacts/benchmark";
 constexpr bool kRunStartupValidation = false;
 constexpr bool kDumpFirstShowcaseFrame = false;
 constexpr float kLanguageRailX = 980.0f;
@@ -29,6 +30,7 @@ constexpr float kLanguageRailY = 150.0f;
 constexpr float kLanguageRailStep = 28.0f;
 constexpr float kLanguageSlotTopOffset = 24.0f;
 constexpr float kLanguageSlotHeight = 32.0f;
+constexpr std::size_t kBenchmarkTextCodepointLimit = 24;
 
 struct DemoApp
 {
@@ -40,6 +42,48 @@ struct DemoViewSettings
 {
     float featureScale = 1.0f;
     float featurePixelSize = 22.0f;
+};
+
+enum class DemoMode
+{
+    Showcase,
+    Benchmark,
+};
+
+struct DemoRuntimeStats
+{
+    std::size_t queuedTextCount = 0;
+    std::size_t drawGlyphCount = 0;
+    std::size_t drawBatchCount = 0;
+    std::size_t submittedBatchCount = 0;
+    std::uint32_t atlasPageCount = 0;
+    std::uint64_t atlasMemoryBytes = 0;
+    float prepareMs = 0.0f;
+    float renderMs = 0.0f;
+    float frameMs = 0.0f;
+    float fps = 0.0f;
+};
+
+struct BenchmarkSettings
+{
+    enum class Layout
+    {
+        Stacked,
+        Scroller,
+    };
+
+    int runCount = 800;
+    int columnCount = 4;
+    Layout layout = Layout::Stacked;
+};
+
+struct DemoCliOptions
+{
+    DemoMode initialMode = DemoMode::Showcase;
+    int benchmarkRunCount = 800;
+    BenchmarkSettings::Layout benchmarkLayout = BenchmarkSettings::Layout::Stacked;
+    float benchmarkDurationSeconds = 0.0f;
+    bool printUsage = false;
 };
 
 struct DemoSampleText
@@ -147,6 +191,145 @@ std::vector<std::string> CollectNonEmptyLines(const std::string& text)
         }
     }
     return lines;
+}
+
+const char* BenchmarkLayoutLabel(BenchmarkSettings::Layout layout)
+{
+    switch (layout)
+    {
+    case BenchmarkSettings::Layout::Stacked:
+        return "stacked";
+    case BenchmarkSettings::Layout::Scroller:
+        return "scroller";
+    }
+    return "unknown";
+}
+
+bool ParseIntArg(const char* value, int& out)
+{
+    if (value == nullptr)
+    {
+        return false;
+    }
+    char* end = nullptr;
+    const long parsed = std::strtol(value, &end, 10);
+    if (end == value || *end != '\0')
+    {
+        return false;
+    }
+    out = static_cast<int>(parsed);
+    return true;
+}
+
+bool ParseFloatArg(const char* value, float& out)
+{
+    if (value == nullptr)
+    {
+        return false;
+    }
+    char* end = nullptr;
+    const float parsed = std::strtof(value, &end);
+    if (end == value || *end != '\0')
+    {
+        return false;
+    }
+    out = parsed;
+    return true;
+}
+
+BenchmarkSettings::Layout ParseBenchmarkLayout(const char* value)
+{
+    if (value != nullptr && std::string_view(value) == "scroller")
+    {
+        return BenchmarkSettings::Layout::Scroller;
+    }
+    return BenchmarkSettings::Layout::Stacked;
+}
+
+void PrintUsage()
+{
+    std::cout
+        << "usage: bruvtext-demo [--benchmark] [--benchmark-runs N] [--benchmark-layout stacked|scroller] [--benchmark-duration SEC]\n";
+}
+
+DemoCliOptions ParseCommandLine(int argc, char** argv)
+{
+    DemoCliOptions options{};
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string_view arg = argv[i];
+        if (arg == "--help" || arg == "-h")
+        {
+            options.printUsage = true;
+            return options;
+        }
+        if (arg == "--benchmark")
+        {
+            options.initialMode = DemoMode::Benchmark;
+            continue;
+        }
+        if (arg == "--benchmark-runs" && i + 1 < argc)
+        {
+            int parsed = options.benchmarkRunCount;
+            if (ParseIntArg(argv[++i], parsed))
+            {
+                options.benchmarkRunCount = std::clamp(parsed, 50, 20000);
+            }
+            continue;
+        }
+        if (arg == "--benchmark-layout" && i + 1 < argc)
+        {
+            options.benchmarkLayout = ParseBenchmarkLayout(argv[++i]);
+            continue;
+        }
+        if (arg == "--benchmark-duration" && i + 1 < argc)
+        {
+            float parsed = options.benchmarkDurationSeconds;
+            if (ParseFloatArg(argv[++i], parsed))
+            {
+                options.benchmarkDurationSeconds = std::max(parsed, 0.0f);
+            }
+            continue;
+        }
+    }
+    return options;
+}
+
+void InitializeBenchmarkLog()
+{
+    std::filesystem::create_directories(kArtifactsBenchmarkDir);
+    const std::filesystem::path path =
+        std::filesystem::path(kArtifactsBenchmarkDir) / "benchmark_log.csv";
+    std::ofstream output(path, std::ios::trunc);
+    output << "frame_ticks,layout,run_count,queued,glyphs,library_batches,submitted_batches,atlas_pages,atlas_mem_bytes,prepare_ms,render_ms,frame_ms,fps,raster_px,scale\n";
+}
+
+void AppendBenchmarkLog(
+    std::uint64_t frameTicks,
+    const BenchmarkSettings& benchmark,
+    const DemoRuntimeStats& stats,
+    const DemoViewSettings& settings)
+{
+    const std::filesystem::path path =
+        std::filesystem::path(kArtifactsBenchmarkDir) / "benchmark_log.csv";
+    std::ofstream output(path, std::ios::app);
+    output
+        << frameTicks << ","
+        << BenchmarkLayoutLabel(benchmark.layout) << ","
+        << benchmark.runCount << ","
+        << stats.queuedTextCount << ","
+        << stats.drawGlyphCount << ","
+        << stats.drawBatchCount << ","
+        << stats.submittedBatchCount << ","
+        << stats.atlasPageCount << ","
+        << stats.atlasMemoryBytes << ","
+        << stats.prepareMs << ","
+        << stats.renderMs << ","
+        << stats.frameMs << ","
+        << stats.fps << ","
+        << settings.featurePixelSize << ","
+        << settings.featureScale
+        << "\n";
 }
 
 void PrintStartupInfo()
@@ -312,6 +495,15 @@ std::string Utf8PrefixByCodepoints(std::string_view text, std::size_t codepointC
         ++end;
     }
     return std::string(text.substr(0, end));
+}
+
+std::string TruncateUtf8Codepoints(std::string_view text, std::size_t maxCodepoints)
+{
+    if (CountUtf8Codepoints(text) <= maxCodepoints)
+    {
+        return std::string(text);
+    }
+    return Utf8PrefixByCodepoints(text, maxCodepoints);
 }
 
 std::vector<std::string> WrapByCodepointCount(std::string_view text, std::size_t maxCodepoints)
@@ -485,6 +677,17 @@ std::uint32_t CountAtlasSizeBucketsForFont(const bruvtext::Context& context, bru
         }
     }
     return static_cast<std::uint32_t>(uniqueSizes.size());
+}
+
+void FillRuntimeStats(bruvtext::Context& context, DemoRuntimeStats& stats)
+{
+    const bruvtext::AtlasStats atlasStats = bruvtext::GetAtlasStats(context);
+    stats.queuedTextCount = bruvtext::GetQueuedTextCount(context);
+    stats.drawGlyphCount = bruvtext::GetDrawGlyphCount(context);
+    stats.drawBatchCount = bruvtext::GetDrawBatchCount(context);
+    stats.submittedBatchCount = stats.drawBatchCount;
+    stats.atlasPageCount = atlasStats.pageCount;
+    stats.atlasMemoryBytes = atlasStats.memoryBytes;
 }
 
 void DumpAtlasPages(const bruvtext::Context& context)
@@ -755,7 +958,8 @@ void PrepareDisplayFrame(
     const DemoFonts& fonts,
     const std::array<DemoSampleText, kShowcaseLanguageCount>& samples,
     std::size_t activeIndex,
-    const DemoViewSettings& settings)
+    const DemoViewSettings& settings,
+    DemoRuntimeStats* outStats)
 {
     const bruvtext::FontId activeFont = PickSampleFont(fonts, samples[activeIndex]);
     const bruvtext::AtlasStats atlasStats = bruvtext::GetAtlasStats(context);
@@ -855,6 +1059,11 @@ void PrepareDisplayFrame(
         }
     }
 
+    if (outStats != nullptr)
+    {
+        FillRuntimeStats(context, *outStats);
+    }
+
     static bool dumpedShowcaseFrame = false;
     if constexpr (kDumpFirstShowcaseFrame)
     {
@@ -922,6 +1131,144 @@ void PrepareDisplayFrame(
     }
 }
 
+void PrepareBenchmarkFrame(
+    bruvtext::Context& context,
+    const DemoFonts& fonts,
+    const std::array<DemoSampleText, kShowcaseLanguageCount>& samples,
+    std::size_t activeIndex,
+    const DemoViewSettings& settings,
+    const BenchmarkSettings& benchmark,
+    const DemoRuntimeStats& previousStats,
+    DemoRuntimeStats* outStats)
+{
+    const float rasterSize = settings.featurePixelSize;
+    const float scale = settings.featureScale;
+    const float lineAdvance = MeasureDemoLineAdvance(
+        context,
+        fonts.uiSans,
+        "Ag",
+        rasterSize,
+        scale,
+        1.10f);
+    const int requestedRunCount = benchmark.runCount;
+    const int activeRunCount = requestedRunCount;
+    const std::string modeLine =
+        "Mode benchmark (" + std::string(BenchmarkLayoutLabel(benchmark.layout)) +
+        ")   B toggle mode   M layout   Up/Down language   -/= scale   [/ ] raster size   ,/. run count";
+    const std::string loadLine =
+        "Runs " + std::to_string(activeRunCount) +
+        "/" + std::to_string(requestedRunCount) +
+        "   Glyphs " + std::to_string(previousStats.drawGlyphCount) +
+        "   Batches " + std::to_string(previousStats.submittedBatchCount);
+    const std::string perfLine =
+        "CPU " + std::to_string(static_cast<int>(previousStats.prepareMs + 0.5f)) +
+        " ms   GPU/frame " + std::to_string(static_cast<int>(previousStats.renderMs + 0.5f)) +
+        " ms   FPS " + std::to_string(static_cast<int>(previousStats.fps + 0.5f)) +
+        "   Atlas pages " + std::to_string(previousStats.atlasPageCount) +
+        "   Atlas mem " + FormatMemoryMiB(previousStats.atlasMemoryBytes);
+    const float baseX = 48.0f;
+    const float baseY = 196.0f;
+    const float columnWidth = 280.0f;
+    const float scrollerSpeed = 40.0f;
+
+    bruvtext::BeginFrame(context);
+    bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, "bruvtext benchmark", 52.0f, 58.0f, 40.0f));
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(
+            fonts.uiSans,
+            "GPU text stress mode using the same public API and renderer path",
+            56.0f,
+            94.0f,
+            18.0f,
+            MakeColor(0.80f, 0.76f, 0.70f)));
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(fonts.uiSans, modeLine, 56.0f, 120.0f, 14.0f, MakeColor(0.66f, 0.69f, 0.72f)));
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(fonts.uiSans, loadLine, 56.0f, 140.0f, 14.0f, MakeColor(0.72f, 0.74f, 0.78f)));
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(fonts.uiSans, perfLine, 56.0f, 156.0f, 14.0f, MakeColor(0.72f, 0.74f, 0.78f)));
+
+    for (int runIndex = 0; runIndex < activeRunCount; ++runIndex)
+    {
+        const DemoSampleText& sample = samples[static_cast<std::size_t>(runIndex) % samples.size()];
+        const bruvtext::FontId font = PickSampleFont(fonts, sample);
+        const std::string_view sourceText =
+            (runIndex % 3 == 0 || sample.bodyLines.empty())
+            ? std::string_view(sample.title)
+            : std::string_view(sample.bodyLines[static_cast<std::size_t>(runIndex) % sample.bodyLines.size()]);
+        const std::string text = TruncateUtf8Codepoints(sourceText, kBenchmarkTextCodepointLimit);
+
+        float x = baseX;
+        float y = baseY;
+        if (benchmark.layout == BenchmarkSettings::Layout::Stacked)
+        {
+            const std::size_t slotCount = static_cast<std::size_t>(std::max(1, benchmark.columnCount * 12));
+            const std::size_t slot = static_cast<std::size_t>(runIndex) % slotCount;
+            const std::size_t col = slot % static_cast<std::size_t>(benchmark.columnCount);
+            const std::size_t row = slot / static_cast<std::size_t>(benchmark.columnCount);
+            const std::size_t layer = static_cast<std::size_t>(runIndex) / slotCount;
+            const float jitterX = static_cast<float>(static_cast<int>(layer % 7) - 3) * 0.6f;
+            const float jitterY = static_cast<float>(static_cast<int>((layer / 7) % 5) - 2) * 0.6f;
+            x = baseX + static_cast<float>(col) * columnWidth + jitterX;
+            y = baseY + static_cast<float>(row) * lineAdvance + jitterY;
+        }
+        else
+        {
+            const float scrollOffset = std::fmod(
+                static_cast<float>(SDL_GetTicks()) * (scrollerSpeed / 1000.0f),
+                lineAdvance * static_cast<float>(std::max(activeRunCount, 1)));
+            x = baseX + static_cast<float>(runIndex % 2) * 520.0f;
+            y = baseY + static_cast<float>(runIndex) * lineAdvance - scrollOffset;
+        }
+
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                font,
+                text,
+                x,
+                y,
+                rasterSize,
+                MakeColor(0.92f, 0.90f, 0.86f),
+                scale));
+    }
+
+    if (!bruvtext::EndFrame(context))
+    {
+        bruvtext::ClearAtlasCache(context);
+        bruvtext::BeginFrame(context);
+        bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, "bruvtext benchmark recovery", 52.0f, 58.0f, 32.0f));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiSans,
+                "Benchmark load exceeded current cache or GPU limits. Lower run count or raster size.",
+                56.0f,
+                110.0f,
+                18.0f,
+                MakeColor(0.90f, 0.78f, 0.72f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiSans,
+                "This mode still truncates each sample for repeatable cache pressure and draw-load testing.",
+                56.0f,
+                138.0f,
+                16.0f,
+                MakeColor(0.76f, 0.78f, 0.80f)));
+        bruvtext::EndFrame(context);
+    }
+
+    if (outStats != nullptr)
+    {
+        FillRuntimeStats(context, *outStats);
+    }
+}
+
 void Initialize(DemoApp& app)
 {
     Require(SDL_Init(SDL_INIT_VIDEO), "SDL_Init(SDL_INIT_VIDEO) failed");
@@ -954,13 +1301,23 @@ void RunLoop(
     DemoApp& app,
     bruvtext::Context& textContext,
     const DemoFonts& fonts,
-    const std::array<DemoSampleText, kShowcaseLanguageCount>& samples)
+    const std::array<DemoSampleText, kShowcaseLanguageCount>& samples,
+    const DemoCliOptions& options)
 {
     bool running = true;
     const std::uint64_t startTicks = SDL_GetTicks();
     std::uint64_t rotationBaseTicks = startTicks;
     std::size_t activeLanguage = 0;
     DemoViewSettings settings{};
+    BenchmarkSettings benchmark{};
+    benchmark.runCount = options.benchmarkRunCount;
+    benchmark.layout = options.benchmarkLayout;
+    DemoRuntimeStats runtimeStats{};
+    DemoMode mode = options.initialMode;
+    std::uint64_t previousFrameTicks = SDL_GetTicks();
+    std::uint64_t lastBenchmarkLogTicks = 0;
+    const std::uint64_t benchmarkStartTicks = SDL_GetTicks();
+    InitializeBenchmarkLog();
     while (running)
     {
         SDL_Event event{};
@@ -1004,10 +1361,17 @@ void RunLoop(
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_C)
             {
-                bruvtext::ClearAtlasCacheForFont(
-                    textContext,
-                    PickSampleFont(fonts, samples[activeLanguage])
-                );
+                if (mode == DemoMode::Benchmark)
+                {
+                    bruvtext::ClearAtlasCache(textContext);
+                }
+                else
+                {
+                    bruvtext::ClearAtlasCacheForFont(
+                        textContext,
+                        PickSampleFont(fonts, samples[activeLanguage])
+                    );
+                }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_LEFTBRACKET)
             {
@@ -1015,10 +1379,17 @@ void RunLoop(
                 if (newPixelSize != settings.featurePixelSize)
                 {
                     settings.featurePixelSize = newPixelSize;
-                    bruvtext::ClearAtlasCacheForFont(
-                        textContext,
-                        PickSampleFont(fonts, samples[activeLanguage])
-                    );
+                    if (mode == DemoMode::Benchmark)
+                    {
+                        bruvtext::ClearAtlasCache(textContext);
+                    }
+                    else
+                    {
+                        bruvtext::ClearAtlasCacheForFont(
+                            textContext,
+                            PickSampleFont(fonts, samples[activeLanguage])
+                        );
+                    }
                 }
             }
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_RIGHTBRACKET)
@@ -1028,10 +1399,36 @@ void RunLoop(
                 {
                     settings.featurePixelSize = newPixelSize;
                 }
-                bruvtext::ClearAtlasCacheForFont(
-                    textContext,
-                    PickSampleFont(fonts, samples[activeLanguage])
-                );
+                if (mode == DemoMode::Benchmark)
+                {
+                    bruvtext::ClearAtlasCache(textContext);
+                }
+                else
+                {
+                    bruvtext::ClearAtlasCacheForFont(
+                        textContext,
+                        PickSampleFont(fonts, samples[activeLanguage])
+                    );
+                }
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_B)
+            {
+                mode = mode == DemoMode::Showcase ? DemoMode::Benchmark : DemoMode::Showcase;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_M)
+            {
+                benchmark.layout =
+                    benchmark.layout == BenchmarkSettings::Layout::Stacked
+                    ? BenchmarkSettings::Layout::Scroller
+                    : BenchmarkSettings::Layout::Stacked;
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_COMMA)
+            {
+                benchmark.runCount = std::max(50, benchmark.runCount - 50);
+            }
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_PERIOD)
+            {
+                benchmark.runCount = std::min(20000, benchmark.runCount + 50);
             }
             if (event.type == SDL_EVENT_MOUSE_MOTION)
             {
@@ -1048,35 +1445,100 @@ void RunLoop(
         }
 
         const float timeSeconds = static_cast<float>(SDL_GetTicks() - startTicks) / 1000.0f;
+        const std::uint64_t frameTicks = SDL_GetTicks();
+        const float frameMs = static_cast<float>(frameTicks - previousFrameTicks);
+        previousFrameTicks = frameTicks;
+        runtimeStats.frameMs = frameMs;
+        runtimeStats.fps = frameMs > 0.0f ? 1000.0f / frameMs : 0.0f;
         const std::uint64_t elapsedTicks = SDL_GetTicks() - rotationBaseTicks;
         const std::uint64_t stepTicks = static_cast<std::uint64_t>(kRotationSeconds * 1000.0f);
-        if (stepTicks > 0 && elapsedTicks >= stepTicks)
+        if (mode == DemoMode::Showcase && stepTicks > 0 && elapsedTicks >= stepTicks)
         {
             const std::uint64_t steps = elapsedTicks / stepTicks;
             activeLanguage = (activeLanguage + static_cast<std::size_t>(steps)) % samples.size();
             rotationBaseTicks += steps * stepTicks;
         }
+        if (mode == DemoMode::Benchmark && options.benchmarkDurationSeconds > 0.0f)
+        {
+            const float benchmarkElapsedSeconds =
+                static_cast<float>(frameTicks - benchmarkStartTicks) / 1000.0f;
+            if (benchmarkElapsedSeconds >= options.benchmarkDurationSeconds)
+            {
+                running = false;
+                continue;
+            }
+        }
 
-        PrepareDisplayFrame(textContext, fonts, samples, activeLanguage, settings);
-        if (!demo::RenderVulkanDemoFrame(app.renderer, textContext, timeSeconds))
+        const std::uint64_t prepareStartTicks = SDL_GetTicks();
+        if (mode == DemoMode::Showcase)
+        {
+            PrepareDisplayFrame(textContext, fonts, samples, activeLanguage, settings, &runtimeStats);
+        }
+        else
+        {
+            PrepareBenchmarkFrame(textContext, fonts, samples, activeLanguage, settings, benchmark, runtimeStats, &runtimeStats);
+        }
+        const std::uint64_t prepareEndTicks = SDL_GetTicks();
+        runtimeStats.prepareMs = static_cast<float>(prepareEndTicks - prepareStartTicks);
+
+        const std::uint64_t renderStartTicks = SDL_GetTicks();
+        if (!demo::RenderVulkanDemoFrame(
+                app.renderer,
+                textContext,
+                timeSeconds,
+                mode == DemoMode::Benchmark))
         {
             throw std::runtime_error("RenderVulkanDemoFrame failed");
         }
+        const std::uint64_t renderEndTicks = SDL_GetTicks();
+        runtimeStats.renderMs = static_cast<float>(renderEndTicks - renderStartTicks);
+        runtimeStats.submittedBatchCount = app.renderer.cpuBatches.size();
+        if (mode == DemoMode::Benchmark && frameTicks - lastBenchmarkLogTicks >= 250)
+        {
+            AppendBenchmarkLog(frameTicks, benchmark, runtimeStats, settings);
+            lastBenchmarkLogTicks = frameTicks;
+        }
         if (app.window != nullptr)
         {
-            const std::string title = BuildWindowTitle() + "  |  rotating language demo";
+            const std::string title = BuildWindowTitle() +
+                (mode == DemoMode::Showcase ? "  |  rotating language demo" : "  |  benchmark mode");
             SDL_SetWindowTitle(app.window, title.c_str());
         }
+    }
+
+    if (mode == DemoMode::Benchmark)
+    {
+        std::cout
+            << "benchmark-summary"
+            << " layout=" << BenchmarkLayoutLabel(benchmark.layout)
+            << " runs=" << benchmark.runCount
+            << " queued=" << runtimeStats.queuedTextCount
+            << " glyphs=" << runtimeStats.drawGlyphCount
+            << " library_batches=" << runtimeStats.drawBatchCount
+            << " submitted_batches=" << runtimeStats.submittedBatchCount
+            << " atlas_pages=" << runtimeStats.atlasPageCount
+            << " atlas_mem_bytes=" << runtimeStats.atlasMemoryBytes
+            << " prepare_ms=" << runtimeStats.prepareMs
+            << " render_ms=" << runtimeStats.renderMs
+            << " frame_ms=" << runtimeStats.frameMs
+            << " fps=" << runtimeStats.fps
+            << "\n";
     }
 }
 }
 
-int main()
+int main(int argc, char** argv)
 {
     DemoApp app{};
     bruvtext::Context* textContext = nullptr;
     try
     {
+        const DemoCliOptions options = ParseCommandLine(argc, argv);
+        if (options.printUsage)
+        {
+            PrintUsage();
+            return EXIT_SUCCESS;
+        }
         PrintStartupInfo();
         const std::array<DemoSampleText, kShowcaseLanguageCount> samples = LoadDemoSampleText();
         textContext = bruvtext::CreateContext({BRUVTEXT_ASSETS_ROOT});
@@ -1086,7 +1548,7 @@ int main()
             RunValidationFrames(*textContext, fonts, samples);
         }
         Initialize(app);
-        RunLoop(app, *textContext, fonts, samples);
+        RunLoop(app, *textContext, fonts, samples, options);
         bruvtext::DestroyContext(textContext);
         Shutdown(app);
         return EXIT_SUCCESS;

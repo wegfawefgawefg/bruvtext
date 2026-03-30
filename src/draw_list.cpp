@@ -6,12 +6,12 @@ namespace bruvtext
 {
 bool BuildDrawGlyphs(FrameState& frame, const AtlasCache& cache)
 {
-    frame.drawGlyphCount = 0;
-    frame.drawBatchCount = 0;
+    frame.drawGlyphs.clear();
+    frame.drawBatches.clear();
+    frame.drawGlyphs.reserve(frame.shapedGlyphs.size());
 
-    for (std::uint32_t runIndex = 0; runIndex < frame.shapedRunCount; ++runIndex)
+    for (const ShapedRun& run : frame.shapedRuns)
     {
-        const ShapedRun& run = frame.shapedRuns[runIndex];
         if (!run.active)
         {
             continue;
@@ -32,12 +32,8 @@ bool BuildDrawGlyphs(FrameState& frame, const AtlasCache& cache)
                 continue;
             }
 
-            if (frame.drawGlyphCount >= frame.drawGlyphs.size())
-            {
-                return false;
-            }
-
-            DrawGlyph& draw = frame.drawGlyphs[frame.drawGlyphCount++];
+            frame.drawGlyphs.emplace_back();
+            DrawGlyph& draw = frame.drawGlyphs.back();
             draw = {};
             draw.active = true;
             draw.atlasPage = cached->atlasPage;
@@ -82,32 +78,29 @@ bool BuildDrawGlyphs(FrameState& frame, const AtlasCache& cache)
                     static_cast<float>(page.height);
             }
 
-            if (frame.drawBatchCount == 0)
+            if (frame.drawBatches.empty())
             {
-                DrawBatch& batch = frame.drawBatches[frame.drawBatchCount++];
+                frame.drawBatches.emplace_back();
+                DrawBatch& batch = frame.drawBatches.back();
                 batch.active = true;
                 batch.atlasPage = draw.atlasPage;
-                batch.firstGlyph = frame.drawGlyphCount - 1;
+                batch.firstGlyph = static_cast<std::uint32_t>(frame.drawGlyphs.size() - 1);
                 batch.glyphCount = 1;
                 continue;
             }
 
-            DrawBatch& lastBatch = frame.drawBatches[frame.drawBatchCount - 1];
+            DrawBatch& lastBatch = frame.drawBatches.back();
             if (lastBatch.atlasPage == draw.atlasPage)
             {
                 ++lastBatch.glyphCount;
                 continue;
             }
 
-            if (frame.drawBatchCount >= frame.drawBatches.size())
-            {
-                return false;
-            }
-
-            DrawBatch& batch = frame.drawBatches[frame.drawBatchCount++];
+            frame.drawBatches.emplace_back();
+            DrawBatch& batch = frame.drawBatches.back();
             batch.active = true;
             batch.atlasPage = draw.atlasPage;
-            batch.firstGlyph = frame.drawGlyphCount - 1;
+            batch.firstGlyph = static_cast<std::uint32_t>(frame.drawGlyphs.size() - 1);
             batch.glyphCount = 1;
         }
     }
