@@ -8,6 +8,20 @@ namespace bruvtext
 {
 using FontId = std::uint32_t;
 
+struct Vec2
+{
+    float x = 0.0f;
+    float y = 0.0f;
+};
+
+struct Color
+{
+    float r = 1.0f;
+    float g = 1.0f;
+    float b = 1.0f;
+    float a = 1.0f;
+};
+
 struct Version
 {
     std::uint32_t major = 0;
@@ -30,28 +44,20 @@ struct DrawTextCmd
 {
     FontId font = 0;
     std::string_view text = {};
-    float x = 0.0f;
-    float y = 0.0f;
+    Vec2 position = {};
     float pixelSize = 16.0f;
     float scale = 1.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
 };
 
 struct QueuedTextView
 {
     FontId font = 0;
     const char* text = nullptr;
-    float x = 0.0f;
-    float y = 0.0f;
+    Vec2 position = {};
     float pixelSize = 16.0f;
     float scale = 1.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
 };
 
 struct ShapedGlyphView
@@ -68,14 +74,10 @@ struct ShapedRunView
 {
     FontId font = 0;
     const char* text = nullptr;
-    float x = 0.0f;
-    float y = 0.0f;
+    Vec2 position = {};
     float pixelSize = 16.0f;
     float scale = 1.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
     const ShapedGlyphView* glyphs = nullptr;
     std::size_t glyphCount = 0;
 };
@@ -121,10 +123,7 @@ struct DrawGlyphView
     float v0 = 0.0f;
     float u1 = 0.0f;
     float v1 = 0.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
 };
 
 struct DrawBatchView
@@ -162,13 +161,11 @@ bool DrawText(
     float x,
     float y,
     float pixelSize,
-    float colorR = 1.0f,
-    float colorG = 1.0f,
-    float colorB = 1.0f,
-    float colorA = 1.0f);
+    Color color = {});
 bool DrawTextEx(Context& context, const DrawTextCmd& cmd);
 TextSize MeasureText(Context& context, FontId font, std::string_view text, float pixelSize);
 TextSize MeasureTextEx(Context& context, FontId font, std::string_view text, float pixelSize, float scale);
+float MeasureLineAdvance(Context& context, FontId font, float pixelSize, float scale = 1.0f);
 bool EndFrame(Context& context);
 std::size_t GetQueuedTextCount(const Context& context);
 const QueuedTextView* GetQueuedTextItems(const Context& context);

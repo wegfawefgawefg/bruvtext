@@ -30,14 +30,10 @@ bool QueueText(FrameState& frame, const DrawTextCmd& cmd)
     item.active = true;
     item.font = cmd.font;
     item.text = std::string(cmd.text);
-    item.x = cmd.x;
-    item.y = cmd.y;
+    item.position = cmd.position;
     item.pixelSize = cmd.pixelSize;
     item.scale = cmd.scale;
-    item.colorR = cmd.colorR;
-    item.colorG = cmd.colorG;
-    item.colorB = cmd.colorB;
-    item.colorA = cmd.colorA;
+    item.color = cmd.color;
     return true;
 }
 }

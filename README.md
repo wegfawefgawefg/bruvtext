@@ -61,7 +61,6 @@ major non-Latin script jump.
 
 Even for the first milestone, the library should be built with:
 
-- font fallback support
 - per-font glyph caches
 - lazy atlas growth by size
 - shaping-driven glyph positioning
@@ -119,46 +118,6 @@ The intended rendering path is:
 That keeps CPU work focused on shaping and cache misses instead of rerendering
 whole strings every frame.
 
-## Atlas Tolerance Behavior
-
-Atlas tolerance is intended to affect cache reuse, not text layout.
-
-The intended behavior is:
-
-- requested text size always drives shaping, advances, wrapping, and placement
-- atlas tolerance only affects which cached glyph bitmap size is used
-- tolerance `0` means exact-size glyph atlases
-- higher tolerance means nearby requested sizes may share the same atlas bucket
-
-What should change when tolerance changes:
-
-- atlas page count
-- atlas size-bucket count
-- atlas memory usage
-- bitmap sharpness if reuse gets aggressive
-
-What should not change when tolerance changes:
-
-- glyph order
-- line breaks caused by shaping/layout
-- requested text size semantics
-- baseline flow and general text placement logic
-
-If layout changes dramatically when tolerance changes, that is a bug.
-
-The current demo is supposed to make this visible:
-
-- `-` / `=` changes the featured text size
-- `[` / `]` changes atlas tolerance
-- `C` clears the active feature font cache
-
-The intended demo read is:
-
-- with tolerance `0`, changing text size should create more exact-size buckets over time
-- with higher tolerance, the active font should reuse atlas buckets more often
-- memory and bucket counts should grow more slowly at higher tolerance
-- if the image degrades, it should degrade as bitmap quality, not as broken layout
-
 ## Ease Of Use Versus Low Opinion
 
 The intended design is:
@@ -187,5 +146,6 @@ host project to build a text system from scratch.
 ## Documentation
 
 - [Library Spec](docs/library-spec.md)
+- [V1 Remaining Scope](docs/v1-remaining-scope.md)
 - [Vulkan Integration](docs/vulkan-integration.md)
 - [GPU Renderer Gap](docs/gpu-renderer-gap.md)

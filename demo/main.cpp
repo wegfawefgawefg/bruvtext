@@ -386,7 +386,31 @@ std::vector<std::string> WrapDemoLine(
     }
 }
 
-float MeasureLineAdvance(
+bruvtext::Color MakeColor(float r, float g, float b, float a = 1.0f)
+{
+    return bruvtext::Color{r, g, b, a};
+}
+
+bruvtext::DrawTextCmd MakeDrawCmd(
+    bruvtext::FontId font,
+    std::string_view text,
+    float x,
+    float y,
+    float pixelSize,
+    bruvtext::Color color = {},
+    float scale = 1.0f)
+{
+    return bruvtext::DrawTextCmd{
+        .font = font,
+        .text = text,
+        .position = {x, y},
+        .pixelSize = pixelSize,
+        .scale = scale,
+        .color = color,
+    };
+}
+
+float MeasureDemoLineAdvance(
     bruvtext::Context& context,
     bruvtext::FontId font,
     std::string_view probeText,
@@ -394,13 +418,13 @@ float MeasureLineAdvance(
     float scale,
     float fallbackMultiplier)
 {
-    const std::string_view probe = probeText.empty() ? std::string_view("Ag") : probeText;
-    const bruvtext::TextSize measured = bruvtext::MeasureTextEx(context, font, probe, pixelSize, scale);
-    if (measured.height <= 0.0f)
+    (void)probeText;
+    const float measured = bruvtext::MeasureLineAdvance(context, font, pixelSize, scale);
+    if (measured <= 0.0f)
     {
         return std::max(1.0f, std::ceil(pixelSize * scale * fallbackMultiplier));
     }
-    return std::max(1.0f, std::ceil(measured.height * fallbackMultiplier));
+    return std::max(1.0f, std::ceil(measured * fallbackMultiplier));
 }
 
 std::string FormatMemoryMiB(std::uint64_t bytes)
@@ -499,58 +523,29 @@ void QueueDemoText(
     bool includeLargeSpanish)
 {
     bruvtext::BeginFrame(context);
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiSans,
-        .text = "bruvtext demo scaffold",
-        .x = 24.0f,
-        .y = 24.0f,
-        .pixelSize = 28.0f,
-    });
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiSans,
-        .text = samples[0].title,
-        .x = 24.0f,
-        .y = 64.0f,
-        .pixelSize = 18.0f,
-    });
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiSans,
-        .text = samples[1].title,
-        .x = 24.0f,
-        .y = 96.0f,
-        .pixelSize = 22.0f,
-    });
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiSans,
-        .text = samples[2].title,
-        .x = 24.0f,
-        .y = 132.0f,
-        .pixelSize = 28.0f,
-    });
+    bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, "bruvtext demo scaffold", 24.0f, 24.0f, 28.0f));
+    bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, samples[0].title, 24.0f, 64.0f, 18.0f));
+    bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, samples[1].title, 24.0f, 96.0f, 22.0f));
+    bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, samples[2].title, 24.0f, 132.0f, 28.0f));
     if (includeLargeSpanish)
     {
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = samples[2].title,
-            .x = 24.0f,
-            .y = 228.0f,
-            .pixelSize = 42.0f,
-        });
+        bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, samples[2].title, 24.0f, 228.0f, 42.0f));
     }
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiMono,
-        .text = "0123456789 !?[]{}() <> +-=/",
-        .x = 24.0f,
-        .y = includeLargeSpanish ? 288.0f : 180.0f,
-        .pixelSize = 20.0f,
-    });
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(
+            fonts.uiMono,
+            "0123456789 !?[]{}() <> +-=/",
+            24.0f,
+            includeLargeSpanish ? 288.0f : 180.0f,
+            20.0f));
     std::cout << "queued text items:\n";
     const std::size_t count = bruvtext::GetQueuedTextCount(context);
     const bruvtext::QueuedTextView* items = bruvtext::GetQueuedTextItems(context);
     for (std::size_t i = 0; i < count; ++i)
     {
         std::cout << "  font=" << items[i].font
-                  << " pos=(" << items[i].x << ", " << items[i].y << ")"
+                  << " pos=(" << items[i].position.x << ", " << items[i].position.y << ")"
                   << " px=" << items[i].pixelSize
                   << " scale=" << items[i].scale
                   << " text=\"" << items[i].text << "\"\n";
@@ -671,17 +666,16 @@ void DrawLanguageTabsText(
     {
         const bool active = i == activeIndex;
         const float y = kLanguageRailY + static_cast<float>(i) * kLanguageRailStep;
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = samples[i].language,
-            .x = kLanguageRailX,
-            .y = y,
-            .pixelSize = active ? 22.0f : 16.0f,
-            .colorR = active ? 1.0f : 0.72f,
-            .colorG = active ? 0.98f : 0.74f,
-            .colorB = active ? 0.92f : 0.76f,
-            .colorA = active ? 1.0f : 0.72f,
-        });
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiSans,
+                samples[i].language,
+                kLanguageRailX,
+                y,
+                active ? 22.0f : 16.0f,
+                active ? MakeColor(1.0f, 0.98f, 0.92f, 1.0f)
+                       : MakeColor(0.72f, 0.74f, 0.76f, 0.72f)));
     }
 }
 
@@ -714,38 +708,26 @@ void DrawFeatureCard(
     const float titlePixelSize = std::round(settings.featurePixelSize * (34.0f / 22.0f));
     const float bodyPixelSize = settings.featurePixelSize;
     const float bodyDisplaySize = bodyPixelSize * settings.featureScale;
-    const float titleLineStep = MeasureLineAdvance(
+    const float titleLineStep = MeasureDemoLineAdvance(
         context,
         sampleFont,
         sample.title,
         titlePixelSize,
         settings.featureScale,
         1.08f);
-    const float bodyLineStep = MeasureLineAdvance(
+    const float bodyLineStep = MeasureDemoLineAdvance(
         context,
         sampleFont,
         sample.bodyLines.empty() ? std::string_view("Ag") : std::string_view(sample.bodyLines.front()),
         bodyPixelSize,
         settings.featureScale,
         1.18f);
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = fonts.uiSans,
-        .text = sample.language,
-        .x = 54.0f,
-        .y = 270.0f,
-        .pixelSize = 18.0f,
-        .colorR = 0.78f,
-        .colorG = 0.72f,
-        .colorB = 0.62f,
-    });
-    bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-        .font = sampleFont,
-        .text = sample.title,
-        .x = 54.0f,
-        .y = 312.0f,
-        .pixelSize = titlePixelSize,
-        .scale = settings.featureScale,
-    });
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(fonts.uiSans, sample.language, 54.0f, 270.0f, 18.0f, MakeColor(0.78f, 0.72f, 0.62f)));
+    bruvtext::DrawTextEx(
+        context,
+        MakeDrawCmd(sampleFont, sample.title, 54.0f, 312.0f, titlePixelSize, {}, settings.featureScale));
 
     float y = 312.0f + titleLineStep + std::max(8.0f, std::round(12.0f * settings.featureScale));
     for (const std::string& line : sample.bodyLines)
@@ -753,17 +735,16 @@ void DrawFeatureCard(
         const std::vector<std::string> wrappedLines = WrapDemoLine(sample, line, bodyDisplaySize);
         for (const std::string& wrapped : wrappedLines)
         {
-            bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-                .font = sampleFont,
-                .text = wrapped,
-                .x = 56.0f,
-                .y = y,
-                .pixelSize = bodyPixelSize,
-                .scale = settings.featureScale,
-                .colorR = 0.92f,
-                .colorG = 0.90f,
-                .colorB = 0.86f,
-            });
+            bruvtext::DrawTextEx(
+                context,
+                MakeDrawCmd(
+                    sampleFont,
+                    wrapped,
+                    56.0f,
+                    y,
+                    bodyPixelSize,
+                    MakeColor(0.92f, 0.90f, 0.86f),
+                    settings.featureScale));
             y += bodyLineStep;
         }
     }
@@ -793,93 +774,49 @@ void PrepareDisplayFrame(
 
     const auto queueShowcase = [&]() {
         bruvtext::BeginFrame(context);
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = "bruvtext",
-            .x = 52.0f,
-            .y = 58.0f,
-            .pixelSize = 40.0f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = "HarfBuzz + FreeType + Vulkan demo",
-            .x = 56.0f,
-            .y = 94.0f,
-            .pixelSize = 18.0f,
-            .colorR = 0.80f,
-            .colorG = 0.76f,
-            .colorB = 0.70f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = "Languages",
-            .x = 980.0f,
-            .y = 110.0f,
-            .pixelSize = 18.0f,
-            .colorR = 0.78f,
-            .colorG = 0.72f,
-            .colorB = 0.62f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiMono,
-            .text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ  abcdefghijklmnopqrstuvwxyz  0123456789  !?[]{}<> +-=/",
-            .x = 56.0f,
-            .y = 174.0f,
-            .pixelSize = 16.0f,
-            .colorR = 0.92f,
-            .colorG = 0.90f,
-            .colorB = 0.84f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = "Feature language",
-            .x = 54.0f,
-            .y = 232.0f,
-            .pixelSize = 18.0f,
-            .colorR = 0.78f,
-            .colorG = 0.72f,
-            .colorB = 0.62f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = "Up/Down language   -/= scale   [/ ] raster size   C clear active font cache",
-            .x = 56.0f,
-            .y = 204.0f,
-            .pixelSize = 14.0f,
-            .colorR = 0.66f,
-            .colorG = 0.69f,
-            .colorB = 0.72f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = scaleLine,
-            .x = 56.0f,
-            .y = 118.0f,
-            .pixelSize = 14.0f,
-            .colorR = 0.72f,
-            .colorG = 0.74f,
-            .colorB = 0.78f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = memoryLine,
-            .x = 56.0f,
-            .y = 136.0f,
-            .pixelSize = 14.0f,
-            .colorR = 0.72f,
-            .colorG = 0.74f,
-            .colorB = 0.78f,
-        });
-        bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-            .font = fonts.uiSans,
-            .text = bucketLine,
-            .x = 56.0f,
-            .y = 152.0f,
-            .pixelSize = 14.0f,
-            .colorR = 0.72f,
-            .colorG = 0.74f,
-            .colorB = 0.78f,
-        });
+        bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, "bruvtext", 52.0f, 58.0f, 40.0f));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiSans,
+                "HarfBuzz + FreeType + Vulkan demo",
+                56.0f,
+                94.0f,
+                18.0f,
+                MakeColor(0.80f, 0.76f, 0.70f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(fonts.uiSans, "Languages", 980.0f, 110.0f, 18.0f, MakeColor(0.78f, 0.72f, 0.62f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiMono,
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ  abcdefghijklmnopqrstuvwxyz  0123456789  !?[]{}<> +-=/",
+                56.0f,
+                174.0f,
+                16.0f,
+                MakeColor(0.92f, 0.90f, 0.84f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(fonts.uiSans, "Feature language", 54.0f, 232.0f, 18.0f, MakeColor(0.78f, 0.72f, 0.62f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(
+                fonts.uiSans,
+                "Up/Down language   -/= scale   [/ ] raster size   C clear active font cache",
+                56.0f,
+                204.0f,
+                14.0f,
+                MakeColor(0.66f, 0.69f, 0.72f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(fonts.uiSans, scaleLine, 56.0f, 118.0f, 14.0f, MakeColor(0.72f, 0.74f, 0.78f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(fonts.uiSans, memoryLine, 56.0f, 136.0f, 14.0f, MakeColor(0.72f, 0.74f, 0.78f)));
+        bruvtext::DrawTextEx(
+            context,
+            MakeDrawCmd(fonts.uiSans, bucketLine, 56.0f, 152.0f, 14.0f, MakeColor(0.72f, 0.74f, 0.78f)));
 
         DrawLanguageTabsText(context, fonts, samples, activeIndex);
         DrawFeatureCard(context, fonts, samples[activeIndex], settings);
@@ -895,33 +832,25 @@ void PrepareDisplayFrame(
         if (!bruvtext::EndFrame(context))
         {
             bruvtext::BeginFrame(context);
-            bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-                .font = fonts.uiSans,
-                .text = "bruvtext showcase recovery",
-                .x = 52.0f,
-                .y = 58.0f,
-                .pixelSize = 32.0f,
-            });
-            bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-                .font = fonts.uiSans,
-                .text = "Active font atlas cache overflowed. Press C or lower raster size/scale.",
-                .x = 56.0f,
-                .y = 120.0f,
-                .pixelSize = 18.0f,
-                .colorR = 0.90f,
-                .colorG = 0.78f,
-                .colorB = 0.72f,
-            });
-            bruvtext::DrawTextEx(context, bruvtext::DrawTextCmd{
-                .font = fonts.uiSans,
-                .text = samples[activeIndex].language,
-                .x = 56.0f,
-                .y = 164.0f,
-                .pixelSize = 20.0f,
-                .colorR = 0.78f,
-                .colorG = 0.72f,
-                .colorB = 0.62f,
-            });
+            bruvtext::DrawTextEx(context, MakeDrawCmd(fonts.uiSans, "bruvtext showcase recovery", 52.0f, 58.0f, 32.0f));
+            bruvtext::DrawTextEx(
+                context,
+                MakeDrawCmd(
+                    fonts.uiSans,
+                    "Active font atlas cache overflowed. Press C or lower raster size/scale.",
+                    56.0f,
+                    120.0f,
+                    18.0f,
+                    MakeColor(0.90f, 0.78f, 0.72f)));
+            bruvtext::DrawTextEx(
+                context,
+                MakeDrawCmd(
+                    fonts.uiSans,
+                    samples[activeIndex].language,
+                    56.0f,
+                    164.0f,
+                    20.0f,
+                    MakeColor(0.78f, 0.72f, 0.62f)));
             bruvtext::EndFrame(context);
         }
     }
@@ -941,7 +870,7 @@ void PrepareDisplayFrame(
                           << " font=" << queuedItems[i].font
                           << " px=" << queuedItems[i].pixelSize
                           << " scale=" << queuedItems[i].scale
-                          << " pos=(" << queuedItems[i].x << ", " << queuedItems[i].y << ")"
+                          << " pos=(" << queuedItems[i].position.x << ", " << queuedItems[i].position.y << ")"
                           << " text=\"" << queuedItems[i].text << "\"\n";
             }
 

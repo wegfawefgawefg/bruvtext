@@ -63,35 +63,42 @@ We do want:
 
 The public API should stay small and explicit.
 
-Example direction:
+Current intended direction:
 
 ```cpp
-BruvTextContext* bruvtext_create(const BruvTextCreateInfo* info);
-void bruvtext_destroy(BruvTextContext* ctx);
+bruvtext::Context* CreateContext(const bruvtext::CreateInfo& info);
+void DestroyContext(bruvtext::Context* context);
 
-BruvTextFontId bruvtext_register_font(BruvTextContext* ctx, const BruvTextFontDesc* desc);
-BruvTextTextStyleId bruvtext_register_style(BruvTextContext* ctx, const BruvTextStyleDesc* desc);
+bruvtext::FontId RegisterFont(bruvtext::Context& context, const bruvtext::FontDesc& desc);
 
-void bruvtext_begin_frame(BruvTextContext* ctx, const BruvTextFrameInfo* info);
-void bruvtext_draw_text(BruvTextContext* ctx, const BruvTextDrawCmd* cmd);
-void bruvtext_end_frame(BruvTextContext* ctx);
+void BeginFrame(bruvtext::Context& context);
+bool DrawText(
+    bruvtext::Context& context,
+    bruvtext::FontId font,
+    std::string_view text,
+    float x,
+    float y,
+    float pixelSize,
+    bruvtext::Color color = {});
+bool DrawTextEx(bruvtext::Context& context, const bruvtext::DrawTextCmd& cmd);
+bruvtext::TextSize MeasureText(
+    bruvtext::Context& context,
+    bruvtext::FontId font,
+    std::string_view text,
+    float pixelSize);
+float MeasureLineAdvance(
+    bruvtext::Context& context,
+    bruvtext::FontId font,
+    float pixelSize,
+    float scale = 1.0f);
+bool EndFrame(bruvtext::Context& context);
 ```
-
-Possible lower-level API:
-
-```cpp
-bool bruvtext_shape_run(BruvTextContext* ctx, const BruvTextShapeRequest* req, BruvTextShapedRun* out);
-bool bruvtext_build_draw_data(BruvTextContext* ctx, const BruvTextShapedRun* run, BruvTextDrawData* out);
-```
-
-The high-level API should be enough for normal engine use.
-The lower-level API is useful for debugging and custom engine integration.
 
 The important usability goal is:
 
-- a normal user of the library should mostly interact with `draw_text(...)`
+- a normal user of the library should mostly interact with `DrawText(...)`
 - they should not need to manually shape runs or manually manage atlases just to render HUD text
-- the lower-level APIs exist so engine authors can integrate the library cleanly
+- lower-level inspection APIs can still exist for debugging and engine integration
 
 ## Internal Modules
 
@@ -111,20 +118,20 @@ Suggested modules:
 
 ## Font Strategy
 
-The library should support:
+For v1, the library should support:
 
-- one primary UI font
-- a fallback chain
-- per-size atlas pages
+- explicit font registration
+- per-font, per-size atlas pages
+- caller-chosen fonts for the languages they care about
 
-Likely font setup for the demo:
+The demo should continue to ship a practical set of fonts:
 
 - Latin-capable font
 - CJK-capable font
 - Arabic-capable font
 - Devanagari-capable font
 
-In practice this will probably mean Noto-family fonts or a similar broad-coverage set.
+Automatic fallback chains are a later feature, not a v1 requirement.
 
 ## Atlas Strategy
 
@@ -144,37 +151,28 @@ It should only rasterize:
 - new font sizes
 - new fallback fonts
 
-### Atlas Size Tolerance
+### Cache Policy
 
-The library should support atlas size tolerance as a cache policy.
+The cache policy should stay simple for v1.
 
-The intended model is:
+We do not need a heroic cache system. We do need a predictable one:
 
-- every draw command asks for a requested text size
-- shaping and layout use that requested size directly
-- atlas selection may snap that requested size to a nearby shared atlas bucket
-- draw quads then sample from the chosen atlas bucket
+- atlas pages are created lazily per font and raster size
+- glyphs are inserted on cache miss
+- page growth is bounded
+- over-cap behavior should be safe and explicit
 
-This means tolerance is allowed to influence:
+Possible v1-safe behaviors:
 
-- how many atlas sizes are created
-- how much atlas memory is used
-- whether a cached glyph bitmap is an exact-size match or a reused nearby match
+- clear a font cache on demand
+- evict oldest size buckets for a font
+- or clear the least-recently-used pages
 
-This means tolerance is not allowed to influence:
+What matters is:
 
-- shaping decisions
-- glyph advances
-- line wrapping logic
-- paragraph layout semantics
-- which size the caller thinks they requested
-
-In short:
-
-- requested size controls layout
-- atlas bucket size controls glyph bitmap reuse
-
-If changing tolerance causes obvious layout drift, that is a bug.
+- no leaks
+- no crashes under size churn
+- easy-to-understand behavior while debugging
 
 The expected user-visible tradeoff is:
 
@@ -197,15 +195,15 @@ The important subtlety is:
 The first serious milestone should support:
 
 - single-line shaped text
-- multi-line wrapped text
-- alignment
-- scale and size selection
+- text measurement
+- caller-controlled line placement
+- scale and raster-size selection
 - kerning
 - ligatures
-- fallback fonts
 
 Later milestones can add:
 
+- library-provided wrapping helpers
 - bidi-aware layout
 - richer paragraph shaping
 - selection/cursor support

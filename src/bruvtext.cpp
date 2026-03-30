@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <filesystem>
 
 #include <ft2build.h>
@@ -86,8 +87,10 @@ TextSize MeasureQueuedText(FrameState& frame)
                 continue;
             }
 
-            const float x0 = run.x + (glyph.x + static_cast<float>(glyph.bearingX) - run.x) * scale;
-            const float y0 = run.y + (glyph.y - static_cast<float>(glyph.bearingY) - run.y) * scale;
+            const float x0 = run.position.x +
+                (glyph.x + static_cast<float>(glyph.bearingX) - run.position.x) * scale;
+            const float y0 = run.position.y +
+                (glyph.y - static_cast<float>(glyph.bearingY) - run.position.y) * scale;
             const float x1 = x0 + static_cast<float>(glyph.width) * scale;
             const float y1 = y0 + static_cast<float>(glyph.height) * scale;
 
@@ -200,22 +203,15 @@ bool DrawText(
     float x,
     float y,
     float pixelSize,
-    float colorR,
-    float colorG,
-    float colorB,
-    float colorA)
+    Color color)
 {
     return DrawTextEx(context, DrawTextCmd{
         .font = font,
         .text = text,
-        .x = x,
-        .y = y,
+        .position = {x, y},
         .pixelSize = pixelSize,
         .scale = 1.0f,
-        .colorR = colorR,
-        .colorG = colorG,
-        .colorB = colorB,
-        .colorA = colorA,
+        .color = color,
     });
 }
 
@@ -246,8 +242,7 @@ TextSize MeasureTextEx(Context& context, FontId font, std::string_view text, flo
     if (!QueueText(frame, DrawTextCmd{
             .font = font,
             .text = text,
-            .x = 0.0f,
-            .y = 0.0f,
+            .position = {},
             .pixelSize = pixelSize,
             .scale = scale,
         }))
@@ -259,6 +254,27 @@ TextSize MeasureTextEx(Context& context, FontId font, std::string_view text, flo
         return {};
     }
     return MeasureQueuedText(frame);
+}
+
+float MeasureLineAdvance(Context& context, FontId font, float pixelSize, float scale)
+{
+    auto& impl = static_cast<ContextImpl&>(context);
+    const RegisteredFont* registered = FindFontById(impl.fonts, font);
+    if (registered == nullptr || registered->face == nullptr)
+    {
+        return 0.0f;
+    }
+
+    const std::uint32_t rasterPixelSize = static_cast<std::uint32_t>(
+        std::clamp(std::round(pixelSize), 8.0f, 128.0f));
+    if (FT_Set_Pixel_Sizes(registered->face, 0, rasterPixelSize) != FT_Err_Ok)
+    {
+        return 0.0f;
+    }
+
+    const float lineAdvance =
+        static_cast<float>(registered->face->size->metrics.height) / 64.0f;
+    return std::max(scale, 0.0f) * lineAdvance;
 }
 
 bool EndFrame(Context& context)
@@ -290,14 +306,10 @@ const QueuedTextView* GetQueuedTextItems(const Context& context)
         QueuedTextView& view = impl.queuedTextView[i];
         view.font = source.font;
         view.text = source.text.c_str();
-        view.x = source.x;
-        view.y = source.y;
+        view.position = source.position;
         view.pixelSize = source.pixelSize;
         view.scale = source.scale;
-        view.colorR = source.colorR;
-        view.colorG = source.colorG;
-        view.colorB = source.colorB;
-        view.colorA = source.colorA;
+        view.color = source.color;
     }
     return impl.queuedTextView.data();
 }
@@ -328,14 +340,10 @@ const ShapedRunView* GetShapedRuns(const Context& context)
         ShapedRunView& view = impl.shapedRunView[i];
         view.font = source.font;
         view.text = source.text.c_str();
-        view.x = source.x;
-        view.y = source.y;
+        view.position = source.position;
         view.pixelSize = source.pixelSize;
         view.scale = source.scale;
-        view.colorR = source.colorR;
-        view.colorG = source.colorG;
-        view.colorB = source.colorB;
-        view.colorA = source.colorA;
+        view.color = source.color;
         view.glyphs = impl.shapedGlyphView.data() + source.firstGlyph;
         view.glyphCount = source.glyphCount;
     }
@@ -406,10 +414,7 @@ const DrawGlyphView* GetDrawGlyphs(const Context& context)
         view.v0 = source.v0;
         view.u1 = source.u1;
         view.v1 = source.v1;
-        view.colorR = source.colorR;
-        view.colorG = source.colorG;
-        view.colorB = source.colorB;
-        view.colorA = source.colorA;
+        view.color = source.color;
     }
     return impl.drawGlyphView.data();
 }

@@ -826,25 +826,25 @@ void AppendGlyphVertices(
         0.0f, 0.0f,
         drawX, drawY, drawWidth, drawHeight,
         atlasX, atlasY, atlasWidth, atlasHeight,
-        glyph.colorR, glyph.colorG, glyph.colorB, glyph.colorA};
+        glyph.color.r, glyph.color.g, glyph.color.b, glyph.color.a};
     const TextVertex v1{
         right, top,
         1.0f, 0.0f,
         drawX, drawY, drawWidth, drawHeight,
         atlasX, atlasY, atlasWidth, atlasHeight,
-        glyph.colorR, glyph.colorG, glyph.colorB, glyph.colorA};
+        glyph.color.r, glyph.color.g, glyph.color.b, glyph.color.a};
     const TextVertex v2{
         right, bottom,
         1.0f, 1.0f,
         drawX, drawY, drawWidth, drawHeight,
         atlasX, atlasY, atlasWidth, atlasHeight,
-        glyph.colorR, glyph.colorG, glyph.colorB, glyph.colorA};
+        glyph.color.r, glyph.color.g, glyph.color.b, glyph.color.a};
     const TextVertex v3{
         left, bottom,
         0.0f, 1.0f,
         drawX, drawY, drawWidth, drawHeight,
         atlasX, atlasY, atlasWidth, atlasHeight,
-        glyph.colorR, glyph.colorG, glyph.colorB, glyph.colorA};
+        glyph.color.r, glyph.color.g, glyph.color.b, glyph.color.a};
 
     outVertices.push_back(v0);
     outVertices.push_back(v1);

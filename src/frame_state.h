@@ -19,14 +19,10 @@ struct QueuedText
     bool active = false;
     FontId font = 0;
     std::string text;
-    float x = 0.0f;
-    float y = 0.0f;
+    Vec2 position = {};
     float pixelSize = 16.0f;
     float scale = 1.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
 };
 
 struct ShapedGlyph
@@ -49,14 +45,10 @@ struct ShapedRun
     bool active = false;
     FontId font = 0;
     std::string text;
-    float x = 0.0f;
-    float y = 0.0f;
+    Vec2 position = {};
     float pixelSize = 16.0f;
     float scale = 1.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
     std::uint32_t rasterPixelSize = 0;
     std::uint32_t firstGlyph = 0;
     std::uint32_t glyphCount = 0;
@@ -79,10 +71,7 @@ struct DrawGlyph
     float v0 = 0.0f;
     float u1 = 0.0f;
     float v1 = 0.0f;
-    float colorR = 1.0f;
-    float colorG = 1.0f;
-    float colorB = 1.0f;
-    float colorA = 1.0f;
+    Color color = {};
 };
 
 struct DrawBatch

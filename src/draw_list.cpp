@@ -47,8 +47,8 @@ bool BuildDrawGlyphs(FrameState& frame, const AtlasCache& cache)
             draw.atlasWidth = cached->width;
             draw.atlasHeight = cached->height;
             const float scale = std::max(run.scale, 0.0f);
-            draw.x0 = run.x + (shaped.x + static_cast<float>(shaped.bearingX) - run.x) * scale;
-            draw.y0 = run.y + (shaped.y - static_cast<float>(shaped.bearingY) - run.y) * scale;
+            draw.x0 = run.position.x + (shaped.x + static_cast<float>(shaped.bearingX) - run.position.x) * scale;
+            draw.y0 = run.position.y + (shaped.y - static_cast<float>(shaped.bearingY) - run.position.y) * scale;
             draw.x1 = draw.x0 + static_cast<float>(shaped.width) * scale;
             draw.y1 = draw.y0 + static_cast<float>(shaped.height) * scale;
 
@@ -65,10 +65,7 @@ bool BuildDrawGlyphs(FrameState& frame, const AtlasCache& cache)
                 draw.y1 = draw.y0 + static_cast<float>(cached->height);
             }
 
-            draw.colorR = run.colorR;
-            draw.colorG = run.colorG;
-            draw.colorB = run.colorB;
-            draw.colorA = run.colorA;
+            draw.color = run.color;
 
             if (cached->width > 0 && cached->height > 0)
             {

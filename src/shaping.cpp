@@ -79,20 +79,16 @@ bool ShapeQueuedText(
         run.active = true;
         run.font = item.font;
         run.text = item.text;
-        run.x = item.x;
-        run.y = item.y;
+        run.position = item.position;
         run.pixelSize = item.pixelSize;
         run.scale = item.scale;
-        run.colorR = item.colorR;
-        run.colorG = item.colorG;
-        run.colorB = item.colorB;
-        run.colorA = item.colorA;
+        run.color = item.color;
         run.rasterPixelSize = rasterPixelSize;
         run.firstGlyph = frame.shapedGlyphCount;
         run.glyphCount = glyphCount;
 
-        float penX = item.x;
-        float penY = item.y;
+        float penX = item.position.x;
+        float penY = item.position.y;
         for (unsigned int glyphIndex = 0; glyphIndex < glyphCount; ++glyphIndex)
         {
             ShapedGlyph& out = frame.shapedGlyphs[frame.shapedGlyphCount++];
