@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext renderer contract</title>
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <a class="logo-link" href="./index.html" aria-label="bruvtext home">
+          <img class="logo-image" src="./assets/splash.png" alt="bruvtext logo" />
+        </a>
+        <div class="sidebar-block">
+          <p class="eyebrow">Docs</p>
+          <nav class="nav-list">
+            <a href="./index.html">Overview</a>
+            <a href="./quickstart.html">Quickstart</a>
+            <a href="./vendoring.html">Vendoring</a>
+            <a href="./renderer-contract.html" aria-current="page">Renderer Contract</a>
+            <a href="./language-coverage.html">Language Coverage</a>
+            <a href="./benchmarking.html">Benchmarking</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <p class="eyebrow">Renderer Contract</p>
+          <h1>Who owns what</h1>
+          <p class="lede">
+            The library does not take over Vulkan. It generates text data for a
+            host renderer. The demo renderer is a reference implementation of
+            that contract.
+          </p>
+        </header>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Ownership Split</p>
+            <h2>Explicit responsibilities</h2>
+          </div>
+          <div class="split-grid">
+            <div class="doc-card">
+              <h3>bruvtext owns</h3>
+              <ul class="plain-list">
+                <li>font loading</li>
+                <li>HarfBuzz shaping</li>
+                <li>FreeType rasterization</li>
+                <li>glyph atlas contents</li>
+                <li>draw glyph and draw batch generation</li>
+              </ul>
+            </div>
+            <div class="doc-card">
+              <h3>Host renderer owns</h3>
+              <ul class="plain-list">
+                <li>Vulkan images and samplers</li>
+                <li>buffer allocation</li>
+                <li>descriptor sets</li>
+                <li>pipeline state</li>
+                <li>draw submission</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Per Frame</p>
+            <h2>Typical integration flow</h2>
+          </div>
+          <ol class="step-list">
+            <li>Call <code>BeginFrame</code>.</li>
+            <li>Queue text with <code>DrawText</code> or <code>DrawTextEx</code>.</li>
+            <li>Call <code>EndFrame</code>.</li>
+            <li>Upload dirty atlas pages.</li>
+            <li>Build or upload renderer vertex data.</li>
+            <li>Submit the text pass.</li>
+          </ol>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Flexibility</p>
+            <h2>What this preserves</h2>
+          </div>
+          <ul class="plain-list">
+            <li>screen-space HUD and menu text</li>
+            <li>world-space labels on 3D quads</li>
+            <li>document rendering</li>
+            <li>render-to-texture passes</li>
+          </ul>
+          <p>
+            The library gives you shaped 2D glyph layout and atlas-backed draw
+            data. The host can reinterpret that into whatever final transform
+            or rendering pass it needs.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="./assets/live-reload.js"></script>
+  </body>
+</html>

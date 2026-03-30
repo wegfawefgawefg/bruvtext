@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext vendoring</title>
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <a class="logo-link" href="./index.html" aria-label="bruvtext home">
+          <img class="logo-image" src="./assets/splash.png" alt="bruvtext logo" />
+        </a>
+        <div class="sidebar-block">
+          <p class="eyebrow">Docs</p>
+          <nav class="nav-list">
+            <a href="./index.html">Overview</a>
+            <a href="./quickstart.html">Quickstart</a>
+            <a href="./vendoring.html" aria-current="page">Vendoring</a>
+            <a href="./renderer-contract.html">Renderer Contract</a>
+            <a href="./language-coverage.html">Language Coverage</a>
+            <a href="./benchmarking.html">Benchmarking</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <p class="eyebrow">Vendoring</p>
+          <h1>Bring the repo into another project</h1>
+          <p class="lede">
+            `bruvtext` is a normal repo. Vendor it with a submodule, subtree, or
+            a copied folder. Track the vendored source tree normally. Do not hide
+            it behind a blanket gitignore.
+          </p>
+        </header>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Submodule</p>
+            <h2>Use a git submodule</h2>
+          </div>
+          <pre><code>mkdir -p third_party
+git submodule add https://github.com/wegfawefgawefg/bruvtext third_party/bruvtext
+git submodule update --init --recursive</code></pre>
+          <p>
+            To update later:
+          </p>
+          <pre><code>git -C third_party/bruvtext fetch origin
+git -C third_party/bruvtext checkout master
+git -C third_party/bruvtext pull --ff-only
+git add third_party/bruvtext
+git commit -m "Update bruvtext"</code></pre>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Subtree</p>
+            <h2>Use a git subtree</h2>
+          </div>
+          <pre><code>git subtree add \
+  --prefix=third_party/bruvtext \
+  https://github.com/wegfawefgawefg/bruvtext master --squash</code></pre>
+          <p>To update later:</p>
+          <pre><code>git subtree pull \
+  --prefix=third_party/bruvtext \
+  https://github.com/wegfawefgawefg/bruvtext master --squash</code></pre>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Copied Folder</p>
+            <h2>Use a plain checked-in copy</h2>
+          </div>
+          <ol class="step-list">
+            <li>Create <code>third_party/bruvtext</code> in the host repo.</li>
+            <li>Copy the repository contents into that folder.</li>
+            <li>Commit the vendored source as normal code.</li>
+            <li>Pull updates manually when needed.</li>
+          </ol>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Ignore Rules</p>
+            <h2>Ignore only generated outputs</h2>
+          </div>
+          <pre><code>third_party/bruvtext/build/
+third_party/bruvtext/artifacts/
+third_party/bruvtext/.codex/</code></pre>
+          <div class="callout">
+            The demo fonts and sample text are included so the showcase and
+            benchmark work out of the box. They are not required by the core
+            library API, and they do not matter unless you build or ship the demo.
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./assets/live-reload.js"></script>
+  </body>
+</html>

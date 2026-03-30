@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext quickstart</title>
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <a class="logo-link" href="./index.html" aria-label="bruvtext home">
+          <img class="logo-image" src="./assets/splash.png" alt="bruvtext logo" />
+        </a>
+        <div class="sidebar-block">
+          <p class="eyebrow">Docs</p>
+          <nav class="nav-list">
+            <a href="./index.html">Overview</a>
+            <a href="./quickstart.html" aria-current="page">Quickstart</a>
+            <a href="./vendoring.html">Vendoring</a>
+            <a href="./renderer-contract.html">Renderer Contract</a>
+            <a href="./language-coverage.html">Language Coverage</a>
+            <a href="./benchmarking.html">Benchmarking</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <p class="eyebrow">Quickstart</p>
+          <h1>Minimal app flow</h1>
+          <p class="lede">
+            `bruvtext` is meant to feel like a normal text library from app
+            code. Create one context, register fonts, begin a frame, queue text,
+            end the frame, then let the renderer consume atlas pages and draw
+            batches.
+          </p>
+        </header>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">CMake</p>
+            <h2>Add the library target</h2>
+          </div>
+          <pre><code>add_subdirectory(third_party/bruvtext)
+target_link_libraries(my_app PRIVATE bruvtext)</code></pre>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">App Code</p>
+            <h2>Queue text each frame</h2>
+          </div>
+          <pre><code>bruvtext::ContextDesc desc{};
+desc.assetRoot = "third_party/bruvtext";
+
+bruvtext::Context* text = bruvtext::CreateContext(desc);
+bruvtext::FontId font = bruvtext::RegisterFont(
+    text, "assets/fonts/YourFont.ttf", "UI");
+
+bruvtext::BeginFrame(text);
+bruvtext::DrawText(
+    text,
+    font,
+    "Hello",
+    32.0f,
+    64.0f,
+    20.0f,
+    bruvtext::Color{1.0f, 1.0f, 1.0f, 1.0f});
+bruvtext::EndFrame(text);</code></pre>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Measurements</p>
+            <h2>Use the library for layout math</h2>
+          </div>
+          <pre><code>bruvtext::Vec2 size =
+    bruvtext::MeasureText(text, font, "Hello", 20.0f);
+
+float lineAdvance =
+    bruvtext::MeasureLineAdvance(text, font, 20.0f);</code></pre>
+          <div class="callout">
+            `MeasureText` and `MeasureLineAdvance` are enough for basic centering,
+            spacing, and line layout in caller code. The library does not try to
+            own higher-level page layout.
+          </div>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Next</p>
+            <h2>After `EndFrame`</h2>
+          </div>
+          <ol class="step-list">
+            <li>Inspect atlas pages from the context.</li>
+            <li>Upload dirty pages to GPU textures.</li>
+            <li>Read draw glyphs or draw batches.</li>
+            <li>Submit the text draw pass in your renderer.</li>
+          </ol>
+          <p>
+            The exact renderer split is documented on the renderer contract page.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="./assets/live-reload.js"></script>
+  </body>
+</html>

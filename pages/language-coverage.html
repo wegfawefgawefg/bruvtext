@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext language coverage</title>
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <a class="logo-link" href="./index.html" aria-label="bruvtext home">
+          <img class="logo-image" src="./assets/splash.png" alt="bruvtext logo" />
+        </a>
+        <div class="sidebar-block">
+          <p class="eyebrow">Docs</p>
+          <nav class="nav-list">
+            <a href="./index.html">Overview</a>
+            <a href="./quickstart.html">Quickstart</a>
+            <a href="./vendoring.html">Vendoring</a>
+            <a href="./renderer-contract.html">Renderer Contract</a>
+            <a href="./language-coverage.html" aria-current="page">Language Coverage</a>
+            <a href="./benchmarking.html">Benchmarking</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <p class="eyebrow">Language Coverage</p>
+          <h1>What the showcase proves</h1>
+          <p class="lede">
+            The demo ships 19 sample languages. That is a validation set, not a
+            hard support boundary. Actual support depends on the registered fonts
+            and the script behavior covered by HarfBuzz and FreeType.
+          </p>
+        </header>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Sample Set</p>
+            <h2>Bundled demo languages</h2>
+          </div>
+          <p>
+            English, French, Spanish, German, Italian, Portuguese, Dutch,
+            Vietnamese, Polish, Turkish, Romanian, Czech, Swedish, Japanese,
+            Simplified Chinese, Traditional Chinese, Korean, Arabic, and Hindi.
+          </p>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">What Determines Support</p>
+            <h2>Real boundary conditions</h2>
+          </div>
+          <ul class="plain-list">
+            <li>Does the font contain the glyphs the text needs?</li>
+            <li>Does HarfBuzz shape the script correctly?</li>
+            <li>Can FreeType rasterize the selected glyphs at the requested sizes?</li>
+            <li>Can the host tolerate the atlas memory required for the glyph set in use?</li>
+          </ul>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Fonts</p>
+            <h2>Library support does not equal bundled font coverage</h2>
+          </div>
+          <p>
+            The demo includes fonts needed to exercise several script families.
+            A host project is still expected to register fonts that match its
+            own language requirements. If a chosen font does not contain a glyph,
+            the result will be missing glyph output from that font.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="./assets/live-reload.js"></script>
+  </body>
+</html>

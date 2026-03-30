@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bruvtext benchmarking</title>
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="page-shell">
+      <aside class="sidebar">
+        <a class="logo-link" href="./index.html" aria-label="bruvtext home">
+          <img class="logo-image" src="./assets/splash.png" alt="bruvtext logo" />
+        </a>
+        <div class="sidebar-block">
+          <p class="eyebrow">Docs</p>
+          <nav class="nav-list">
+            <a href="./index.html">Overview</a>
+            <a href="./quickstart.html">Quickstart</a>
+            <a href="./vendoring.html">Vendoring</a>
+            <a href="./renderer-contract.html">Renderer Contract</a>
+            <a href="./language-coverage.html">Language Coverage</a>
+            <a href="./benchmarking.html" aria-current="page">Benchmarking</a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="page-header">
+          <p class="eyebrow">Benchmarking</p>
+          <h1>Run the stress test and read the numbers</h1>
+          <p class="lede">
+            The benchmark exists to expose implementation mistakes and to show
+            where the time is actually going. It is harsher than a normal game
+            HUD or menu scene.
+          </p>
+        </header>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">CLI</p>
+            <h2>Run it without clicking around</h2>
+          </div>
+          <pre><code>./build/debug/demo/bruvtext-demo \
+  --benchmark \
+  --benchmark-layout scroller \
+  --benchmark-runs 800 \
+  --benchmark-duration 2</code></pre>
+          <p>
+            The demo writes CSV samples to
+            <code>artifacts/benchmark/benchmark_log.csv</code>.
+          </p>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Modes</p>
+            <h2>What the layouts mean</h2>
+          </div>
+          <ul class="plain-list">
+            <li><code>stacked</code>: dense overlap and heavy alpha overdraw.</li>
+            <li><code>scroller</code>: lower overlap, better for backend throughput checks.</li>
+          </ul>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Interpretation</p>
+            <h2>What to look at</h2>
+          </div>
+          <ul class="plain-list">
+            <li><code>CPU/prepare ms</code>: shaping, queue processing, draw-data generation.</li>
+            <li><code>GPU/frame ms</code>: upload and draw cost in the renderer.</li>
+            <li><code>Batches</code>: actual renderer-submitted batches, not just library pre-batches.</li>
+            <li><code>Atlas pages</code>: atlas memory footprint and page churn.</li>
+          </ul>
+          <div class="callout">
+            Current measurements show that the GPU path is in decent shape and
+            CPU preparation is still the main cost in the heavier stress cases.
+          </div>
+        </section>
+
+        <section class="doc-section">
+          <div class="section-heading">
+            <p class="eyebrow">Reality Check</p>
+            <h2>Normal projects are usually lighter</h2>
+          </div>
+          <p>
+            Most games and tools do not have every language active at once. They
+            usually render one active language and a small number of fonts. The
+            benchmark intentionally abuses the system more than a normal UI scene.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="./assets/live-reload.js"></script>
+  </body>
+</html>
