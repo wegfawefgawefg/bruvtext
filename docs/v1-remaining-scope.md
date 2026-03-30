@@ -19,17 +19,15 @@ Already in place:
 Not yet considered done:
 
 - public API still needs a final close-out pass
-- cache behavior needs a simple final policy
 - packaging and integration docs need a practical pass
 - tests are light
 
 ## Remaining V1 Work
 
 1. Public API close-out
-2. Simple cache policy
-3. Packaging and integration polish
-4. Minimal smoke tests and regression checks
-5. Docs pass for actual usage
+2. Packaging and integration polish
+3. Minimal smoke tests and regression checks
+4. Docs pass for actual usage
 
 ## Explicitly Out Of Scope For V1
 
@@ -67,17 +65,16 @@ alignment, and wrapping. The demo can keep lightweight sample wrapping code.
 
 ### 3. Cache policy
 
-This should stay simple.
+This is effectively decided for v1.
 
-We do not need a heroic cache system for v1. We do need something predictable
-and safe, such as:
+The current direction is:
 
-- bounded atlas pages per font
-- clear-on-demand
-- or simple oldest-bucket eviction
+- exact-size buckets per font
+- lazy glyph insertion on cache miss
+- bounded buckets per font
+- oldest-bucket eviction when the cap is exceeded
 
-The important part is that the library should not crash or leak when the caller
-uses many raster sizes.
+That is simple enough for v1 and avoids the old tolerance-policy confusion.
 
 ### 4. Font fallback
 

@@ -1,6 +1,7 @@
 #include "atlas_cache.h"
 
 #include <algorithm>
+#include <functional>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -11,6 +12,13 @@ namespace
 {
 constexpr std::uint32_t kAtlasPadding = 1;
 
+struct AtlasBucketKey
+{
+    FontId font = 0;
+    std::uint32_t pixelSize = 0;
+    std::uint64_t lastUsedTick = 0;
+};
+
 void InitializePage(AtlasPage& page)
 {
     page = {};
@@ -20,12 +28,213 @@ void InitializePage(AtlasPage& page)
     page.penX = kAtlasPadding;
     page.penY = kAtlasPadding;
     page.rowHeight = 0;
+    page.lastUsedTick = 0;
     page.pixels.resize(static_cast<std::size_t>(page.width) * page.height * 4, 0);
 }
 
 bool PageMatchesBucket(const AtlasPage& page, FontId font, std::uint32_t pixelSize)
 {
     return page.active && page.font == font && page.pixelSize == pixelSize;
+}
+
+bool GlyphMatchesBucket(const CachedGlyph& glyph, FontId font, std::uint32_t pixelSize)
+{
+    return glyph.active && glyph.font == font && glyph.pixelSize == pixelSize;
+}
+
+bool BucketExists(const AtlasCache& cache, FontId font, std::uint32_t pixelSize)
+{
+    for (const CachedGlyph& glyph : cache.glyphs)
+    {
+        if (GlyphMatchesBucket(glyph, font, pixelSize))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void TouchBucket(AtlasCache& cache, FontId font, std::uint32_t pixelSize)
+{
+    for (std::uint32_t pageIndex = 0; pageIndex < cache.pageCount; ++pageIndex)
+    {
+        AtlasPage& page = cache.pages[pageIndex];
+        if (PageMatchesBucket(page, font, pixelSize))
+        {
+            page.lastUsedTick = cache.useTick;
+        }
+    }
+}
+
+std::vector<AtlasBucketKey> CollectBuckets(const AtlasCache& cache)
+{
+    std::vector<AtlasBucketKey> buckets;
+    for (const CachedGlyph& glyph : cache.glyphs)
+    {
+        if (!glyph.active)
+        {
+            continue;
+        }
+
+        auto existing = std::find_if(
+            buckets.begin(),
+            buckets.end(),
+            [&](const AtlasBucketKey& bucket)
+            {
+                return bucket.font == glyph.font && bucket.pixelSize == glyph.pixelSize;
+            });
+        if (existing == buckets.end())
+        {
+            buckets.push_back(AtlasBucketKey{
+                .font = glyph.font,
+                .pixelSize = glyph.pixelSize,
+                .lastUsedTick = 0,
+            });
+        }
+    }
+
+    for (AtlasBucketKey& bucket : buckets)
+    {
+        for (std::uint32_t pageIndex = 0; pageIndex < cache.pageCount; ++pageIndex)
+        {
+            const AtlasPage& page = cache.pages[pageIndex];
+            if (PageMatchesBucket(page, bucket.font, bucket.pixelSize))
+            {
+                bucket.lastUsedTick = std::max(bucket.lastUsedTick, page.lastUsedTick);
+            }
+        }
+    }
+
+    return buckets;
+}
+
+std::uint32_t CountBucketsForFont(const AtlasCache& cache, FontId font)
+{
+    const std::vector<AtlasBucketKey> buckets = CollectBuckets(cache);
+    std::uint32_t count = 0;
+    for (const AtlasBucketKey& bucket : buckets)
+    {
+        if (bucket.font == font)
+        {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool FilterAtlasCache(
+    AtlasCache& cache,
+    const std::function<bool(FontId, std::uint32_t)>& keepBucket)
+{
+    AtlasCache filtered{};
+    filtered.useTick = cache.useTick;
+    std::array<std::uint32_t, kMaxAtlasPages> pageRemap{};
+    pageRemap.fill(kMaxAtlasPages);
+
+    for (std::uint32_t oldPageIndex = 0; oldPageIndex < cache.pageCount; ++oldPageIndex)
+    {
+        const AtlasPage& page = cache.pages[oldPageIndex];
+        if (!page.active || !keepBucket(page.font, page.pixelSize))
+        {
+            continue;
+        }
+        if (filtered.pageCount >= filtered.pages.size())
+        {
+            break;
+        }
+
+        const std::uint32_t newPageIndex = filtered.pageCount++;
+        filtered.pages[newPageIndex] = page;
+        filtered.pages[newPageIndex].dirty = true;
+        pageRemap[oldPageIndex] = newPageIndex;
+    }
+
+    for (std::uint32_t glyphIndex = 0; glyphIndex < cache.glyphCount; ++glyphIndex)
+    {
+        const CachedGlyph& glyph = cache.glyphs[glyphIndex];
+        if (!glyph.active || !keepBucket(glyph.font, glyph.pixelSize))
+        {
+            continue;
+        }
+        if (filtered.glyphCount >= filtered.glyphs.size())
+        {
+            break;
+        }
+
+        CachedGlyph copy = glyph;
+        if (copy.width > 0 && copy.height > 0)
+        {
+            const std::uint32_t remappedPage = pageRemap[copy.atlasPage];
+            if (remappedPage >= filtered.pageCount)
+            {
+                continue;
+            }
+            copy.atlasPage = remappedPage;
+        }
+        filtered.glyphs[filtered.glyphCount++] = copy;
+    }
+
+    cache = std::move(filtered);
+    return true;
+}
+
+bool EvictBucket(AtlasCache& cache, FontId font, std::uint32_t pixelSize)
+{
+    if (!BucketExists(cache, font, pixelSize))
+    {
+        return false;
+    }
+
+    return FilterAtlasCache(
+        cache,
+        [&](FontId bucketFont, std::uint32_t bucketPixelSize)
+        {
+            return !(bucketFont == font && bucketPixelSize == pixelSize);
+        });
+}
+
+bool EvictOldestBucketForFont(AtlasCache& cache, FontId font, std::uint32_t excludePixelSize)
+{
+    const std::vector<AtlasBucketKey> buckets = CollectBuckets(cache);
+    const AtlasBucketKey* best = nullptr;
+    for (const AtlasBucketKey& bucket : buckets)
+    {
+        if (bucket.font != font || bucket.pixelSize == excludePixelSize)
+        {
+            continue;
+        }
+        if (best == nullptr || bucket.lastUsedTick < best->lastUsedTick)
+        {
+            best = &bucket;
+        }
+    }
+    if (best == nullptr)
+    {
+        return false;
+    }
+    return EvictBucket(cache, best->font, best->pixelSize);
+}
+
+bool EvictOldestBucketGlobal(AtlasCache& cache, FontId excludeFont, std::uint32_t excludePixelSize)
+{
+    const std::vector<AtlasBucketKey> buckets = CollectBuckets(cache);
+    const AtlasBucketKey* best = nullptr;
+    for (const AtlasBucketKey& bucket : buckets)
+    {
+        if (bucket.font == excludeFont && bucket.pixelSize == excludePixelSize)
+        {
+            continue;
+        }
+        if (best == nullptr || bucket.lastUsedTick < best->lastUsedTick)
+        {
+            best = &bucket;
+        }
+    }
+    if (best == nullptr)
+    {
+        return false;
+    }
+    return EvictBucket(cache, best->font, best->pixelSize);
 }
 
 bool BeginNewRow(AtlasPage& page, std::uint32_t glyphHeight)
@@ -99,15 +308,29 @@ bool PackGlyph(
         }
     }
 
-    if (cache.pageCount >= cache.pages.size())
+    if (!BucketExists(cache, font, pixelSize) &&
+        CountBucketsForFont(cache, font) >= kMaxAtlasBucketsPerFont)
     {
-        return false;
+        if (!EvictOldestBucketForFont(cache, font, pixelSize) &&
+            !EvictOldestBucketGlobal(cache, font, pixelSize))
+        {
+            return false;
+        }
+    }
+
+    while (cache.pageCount >= cache.pages.size())
+    {
+        if (!EvictOldestBucketGlobal(cache, font, pixelSize))
+        {
+            return false;
+        }
     }
 
     outPage = cache.pageCount++;
     InitializePage(cache.pages[outPage]);
     cache.pages[outPage].font = font;
     cache.pages[outPage].pixelSize = pixelSize;
+    cache.pages[outPage].lastUsedTick = cache.useTick;
     if (!TryPlaceGlyph(cache.pages[outPage], glyphWidth, glyphHeight, outX, outY))
     {
         return false;
@@ -140,9 +363,13 @@ bool CacheGlyph(
     std::uint32_t glyphIndex
 )
 {
-    if (cache.glyphCount >= cache.glyphs.size())
+    while (cache.glyphCount >= cache.glyphs.size())
     {
-        return false;
+        if (!EvictOldestBucketForFont(cache, font.id, pixelSize) &&
+            !EvictOldestBucketGlobal(cache, font.id, pixelSize))
+        {
+            return false;
+        }
     }
 
     FT_Set_Pixel_Sizes(font.face, 0, pixelSize);
@@ -196,6 +423,7 @@ bool CacheGlyph(
 void InitializeAtlasCache(AtlasCache& cache)
 {
     cache = {};
+    cache.useTick = 1;
 }
 
 const CachedGlyph* FindCachedGlyph(
@@ -225,6 +453,8 @@ bool CacheShapedGlyphs(
     const FontRegistry& fonts
 )
 {
+    ++cache.useTick;
+
     for (std::uint32_t runIndex = 0; runIndex < frame.shapedRunCount; ++runIndex)
     {
         const ShapedRun& run = frame.shapedRuns[runIndex];
@@ -238,6 +468,8 @@ bool CacheShapedGlyphs(
         {
             continue;
         }
+
+        TouchBucket(cache, run.font, run.rasterPixelSize);
 
         for (std::uint32_t glyphOffset = 0; glyphOffset < run.glyphCount; ++glyphOffset)
         {
@@ -279,54 +511,12 @@ void ClearAtlasCache(AtlasCache& cache)
 
 void ClearAtlasCacheForFont(AtlasCache& cache, FontId font)
 {
-    AtlasCache filtered{};
-    std::array<std::uint32_t, kMaxAtlasPages> pageRemap{};
-    pageRemap.fill(kMaxAtlasPages);
-
-    for (std::uint32_t oldPageIndex = 0; oldPageIndex < cache.pageCount; ++oldPageIndex)
-    {
-        const AtlasPage& page = cache.pages[oldPageIndex];
-        if (!page.active || page.font == font)
+    FilterAtlasCache(
+        cache,
+        [&](FontId bucketFont, std::uint32_t)
         {
-            continue;
-        }
-        if (filtered.pageCount >= filtered.pages.size())
-        {
-            break;
-        }
-
-        const std::uint32_t newPageIndex = filtered.pageCount++;
-        filtered.pages[newPageIndex] = page;
-        filtered.pages[newPageIndex].dirty = true;
-        pageRemap[oldPageIndex] = newPageIndex;
-    }
-
-    for (std::uint32_t glyphIndex = 0; glyphIndex < cache.glyphCount; ++glyphIndex)
-    {
-        const CachedGlyph& glyph = cache.glyphs[glyphIndex];
-        if (!glyph.active || glyph.font == font)
-        {
-            continue;
-        }
-        if (filtered.glyphCount >= filtered.glyphs.size())
-        {
-            break;
-        }
-
-        CachedGlyph copy = glyph;
-        if (copy.width > 0 && copy.height > 0)
-        {
-            const std::uint32_t remappedPage = pageRemap[copy.atlasPage];
-            if (remappedPage >= filtered.pageCount)
-            {
-                continue;
-            }
-            copy.atlasPage = remappedPage;
-        }
-        filtered.glyphs[filtered.glyphCount++] = copy;
-    }
-
-    cache = std::move(filtered);
+            return bucketFont != font;
+        });
 }
 
 void ClearAtlasDirtyFlags(AtlasCache& cache)

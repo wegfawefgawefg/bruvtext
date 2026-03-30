@@ -155,24 +155,54 @@ It should only rasterize:
 
 The cache policy should stay simple for v1.
 
-We do not need a heroic cache system. We do need a predictable one:
+We do not need a heroic cache system. We do need a predictable one.
 
-- atlas pages are created lazily per font and raster size
+Current intended v1 behavior:
+
+- atlas pages are created lazily per font and exact raster size
 - glyphs are inserted on cache miss
+- there is no cross-size glyph reuse
 - page growth is bounded
-- over-cap behavior should be safe and explicit
-
-Possible v1-safe behaviors:
-
-- clear a font cache on demand
-- evict oldest size buckets for a font
-- or clear the least-recently-used pages
+- each font gets a bounded number of raster-size buckets
+- over-cap behavior evicts the oldest bucket for that font
 
 What matters is:
 
 - no leaks
 - no crashes under size churn
 - easy-to-understand behavior while debugging
+
+### Optional Preload Path
+
+The library should eventually support an explicit preload path, but this is not
+the default caching model.
+
+The intended split is:
+
+- default: lazy glyph insertion on cache miss
+- optional: caller-requested preload for a known glyph set
+
+This is useful when the caller knows the text ahead of time and wants to avoid
+first-use rasterization spikes.
+
+Likely directions:
+
+- preload from UTF-8 text
+- preload from explicit codepoint arrays
+
+This should be done for a specific:
+
+- font
+- raster size
+
+The preload path must respect the same page and glyph limits as the lazy path.
+That means very large preload sets, especially for CJK, may need to:
+
+- stop early and report failure
+- or evict older buckets according to the normal cache policy
+
+The library should not silently switch to “bake all of Chinese up front” as a
+default behavior.
 
 The expected user-visible tradeoff is:
 

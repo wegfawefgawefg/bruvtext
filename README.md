@@ -118,6 +118,58 @@ The intended rendering path is:
 That keeps CPU work focused on shaping and cache misses instead of rerendering
 whole strings every frame.
 
+## Current Cache Policy
+
+`bruvtext` uses a simple exact-size cache policy.
+
+- glyphs are cached by `font + raster pixel size`
+- there is no cross-size glyph reuse
+- new glyphs are rasterized lazily on cache miss
+- each font can keep a bounded number of raster-size buckets
+- when that bucket cap is exceeded, the oldest bucket for that font is evicted
+
+This keeps the behavior easy to reason about:
+
+- if you want another crisp native size, request another raster size
+- if you scale a smaller raster size up, it will look softer
+- cache policy should not change layout semantics
+
+## Optional Preload Direction
+
+The default cache path should stay lazy.
+
+That is important for high-glyph-count languages, especially:
+
+- Japanese
+- Simplified Chinese
+- Traditional Chinese
+- Korean
+
+But the library should eventually offer an optional preload or prewarm path for
+projects that know their glyph set ahead of time.
+
+The intended model is:
+
+- lazy glyph caching stays the default
+- callers may explicitly preload known glyph sets for a specific `font + raster size`
+
+Useful preload cases:
+
+- fixed HUD strings
+- shipped menu text
+- known Latin or UI punctuation sets
+- benchmark or startup warmup passes
+
+Likely API shapes later:
+
+- `PreloadGlyphs(context, font, utf8Text, pixelSize)`
+- `PreloadCodepoints(context, font, codepoints, count, pixelSize)`
+
+Important constraint:
+
+- preloading large CJK sets can hit atlas page and glyph count limits quickly
+- so preload should remain optional and explicit, not the default behavior
+
 ## Ease Of Use Versus Low Opinion
 
 The intended design is:
