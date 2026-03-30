@@ -12,8 +12,13 @@ The intended workflow is:
 3. update it with normal `git pull`
 
 The goal is not to be a giant UI framework. The goal is to give Vulkan projects
-an explicit, debuggable text stack that can handle major real-world languages
-without rerasterizing whole strings every frame.
+an explicit, debuggable text stack with:
+
+- a normal draw and measure API
+- HarfBuzz shaping
+- FreeType rasterization
+- cached glyph atlases
+- a reference Vulkan renderer
 
 ## Quick Start
 
@@ -62,7 +67,7 @@ See:
 
 ## Scope
 
-The first milestone should focus on:
+The current bundled showcase and benchmark cover:
 
 - English
 - French
@@ -84,38 +89,28 @@ The first milestone should focus on:
 - Arabic
 - Hindi
 
-So the current demo scope now covers both the broad Latin-script set and the first
-major non-Latin script jump.
-
-Even for the first milestone, the library should be built with:
+That sample set covers:
 
 - per-font glyph caches
 - lazy atlas growth by size
 - shaping-driven glyph positioning
+- Latin, CJK, Arabic, and Devanagari script exercise
 
-## Demo Requirements
+## Demo
 
-The repo should ship with a demo mode that proves the system is real, not just
-ASCII debug text.
+The repo ships with:
 
-The demo should include:
+- a showcase mode for correctness and language coverage
+- a benchmark mode for CPU and GPU stress testing
+- a real Vulkan text renderer used by both
 
-- a font fallback chain that covers the target languages
-- lazy atlas creation for multiple font sizes
-- short UI labels
-- long paragraphs
-- wrapping
-- mixed punctuation
-- a glyph coverage view
-- an atlas debug view
+The demo exists to answer:
 
-The demo should make it easy to answer:
-
-- did shaping work
-- did fallback work
-- did the atlas cache work
-- did the glyph positioning work
-- does the final Vulkan output actually look correct
+- does shaping work
+- do glyph positions look correct
+- do atlas caches grow and upload correctly
+- does the Vulkan output match the expected text
+- where is time spent under heavier load
 
 ## Demo Assets
 
@@ -148,7 +143,7 @@ For CJK, the demo should also include:
 
 ## Current Direction
 
-The intended rendering path is:
+The current rendering path is:
 
 1. shape text into positioned glyphs
 2. look up each shaped glyph in a glyph atlas cache
@@ -211,32 +206,18 @@ Important constraint:
 - preloading large CJK sets can hit atlas page and glyph count limits quickly
 - so preload should remain optional and explicit, not the default behavior
 
-## Ease Of Use Versus Low Opinion
-
-The intended design is:
-
-- a low-opinion core that produces glyph atlases, atlas updates, and draw data
-- a simple high-level API on top so normal projects can just call `draw_text(...)`
-
-That means users should not have to think about shaping every time they draw a label.
-They should be able to do something like:
-
-```cpp
-bruvtext_draw_text(ctx, &cmd);
-```
-
-with a command that contains:
-
-- font or style handle
-- position
-- size
-- color
-- string
-
-Internally, the library can stay explicit and cache-oriented without forcing every
-host project to build a text system from scratch.
-
 ## Documentation
+
+There are two doc layers:
+
+- the `pages/` site for user-facing setup and usage docs
+- the `docs/` folder for deeper repo notes, implementation details, and future work
+
+Start with:
+
+- [Integration Quickstart](docs/integration-quickstart.md)
+- [Vendoring Guide](docs/vendoring.md)
+- [Reference Renderer](docs/reference-renderer.md)
 
 - [Docs Home](docs/index.md)
 - [Integration Quickstart](docs/integration-quickstart.md)

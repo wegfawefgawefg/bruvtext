@@ -36,7 +36,7 @@ These are not blockers for the first usable release:
 - rich text editing
 - automatic font fallback chains
 - advanced alignment helpers beyond measurement
-- public atlas tuning knobs like the old tolerance experiment
+- public cache tuning knobs
 
 ## Notes On Scope Decisions
 
@@ -72,7 +72,7 @@ The current direction is:
 - bounded buckets per font
 - oldest-bucket eviction when the cap is exceeded
 
-That is simple enough for v1 and avoids the old tolerance-policy confusion.
+That is simple enough for v1 and keeps cache policy out of the public API.
 
 ### 4. Font fallback
 

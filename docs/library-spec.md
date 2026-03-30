@@ -204,22 +204,6 @@ That means very large preload sets, especially for CJK, may need to:
 The library should not silently switch to “bake all of Chinese up front” as a
 default behavior.
 
-The expected user-visible tradeoff is:
-
-- low tolerance:
-  - more atlas buckets
-  - more memory
-  - more exact raster sizes
-- high tolerance:
-  - fewer atlas buckets
-  - less memory
-  - more bitmap reuse and therefore potentially softer or less perfectly aligned glyph imagery
-
-The important subtlety is:
-
-- higher tolerance may slightly affect bitmap appearance
-- but it should not make text reflow into a different layout just because the cache policy changed
-
 ## Text Layout Scope
 
 The first serious milestone should support:
@@ -241,23 +225,21 @@ Later milestones can add:
 
 ## Language Coverage
 
-The first milestone target set should be:
+The current bundled demo sample set is:
 
 - English
 - French
 - Spanish
-
-That is enough to validate:
-
-- proportional Latin layout
-- accents
-- punctuation
-- atlas generation
-- renderer integration
-
-The planned expansion set after that is:
-
+- German
+- Italian
+- Portuguese
+- Dutch
 - Vietnamese
+- Polish
+- Turkish
+- Romanian
+- Czech
+- Swedish
 - Japanese
 - Simplified Chinese
 - Traditional Chinese
@@ -265,7 +247,7 @@ The planned expansion set after that is:
 - Arabic
 - Hindi
 
-That later set is intentionally broad enough to force:
+That sample set is intentionally broad enough to force:
 
 - heavier Latin accents
 - large CJK glyph sets
@@ -278,16 +260,15 @@ The demo should prove the following:
 
 1. text shapes correctly
 2. glyph positions are correct
-3. fallback fonts engage correctly
-4. lazy atlas growth works
-5. multiple sizes work
-6. wrapped paragraphs look sane
-7. the Vulkan output matches expected text
+3. exact-size font buckets and lazy atlas growth work
+4. multiple sizes work
+5. wrapped paragraphs look sane
+6. the Vulkan output matches expected text
 
 The demo should have:
 
 - language selector
-- font selector or font-chain selector
+- font selection where needed for the bundled samples
 - size selector
 - atlas page viewer
 - glyph cache stats
@@ -296,7 +277,7 @@ The demo should have:
 
 ## Per-Language Demo Content
 
-Each first-milestone language should have:
+Each bundled sample language should have:
 
 - title text
 - short UI sample
@@ -305,12 +286,12 @@ Each first-milestone language should have:
 - numeral sample
 - stress sample
 
-Examples of first-milestone stress cases:
+Examples of Latin-script stress cases:
 
 - French apostrophes and accents
 - Spanish punctuation and accents
 
-Examples of later expansion stress cases:
+Examples of broader script stress cases:
 
 - Vietnamese tone marks
 - Japanese kana + kanji + punctuation
@@ -325,7 +306,6 @@ The library should make it easy to inspect:
 
 - atlas contents
 - glyph positions
-- chosen fallback font per glyph
 - cache misses
 - shape output
 
@@ -335,7 +315,6 @@ Useful debug views:
 - glyph bounding boxes
 - baseline display
 - cluster display
-- fallback font display
 
 ## Performance Direction
 

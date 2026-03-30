@@ -12,6 +12,15 @@ you:
 
 It does **not** try to be a UI framework.
 
+This `docs/` folder is for repo-local technical notes:
+
+- integration details
+- renderer notes
+- performance notes
+- remaining scope and future work
+
+The public-facing docs site lives under `pages/`.
+
 ## What You Get
 
 - a normal `DrawText(...)` / `DrawTextEx(...)` / `MeasureText(...)` style API

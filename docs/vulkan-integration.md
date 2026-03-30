@@ -6,7 +6,7 @@ This document describes the intended Vulkan ownership split for `bruvtext`.
 
 The goal is:
 
-- low opinion about Vulkan resource ownership
+- clear Vulkan resource ownership
 - simple text API for normal app code
 - a reference renderer path that people can copy
 
@@ -150,8 +150,7 @@ The current cache policy is intentionally simple:
 - bounded number of size buckets per font
 - oldest-bucket eviction when the cap is exceeded
 
-This is simpler than the earlier atlas-tolerance experiment and matches the
-current public API better.
+This matches the current public API and keeps cache policy out of user code.
 
 ## Future Optional Helper Layer
 

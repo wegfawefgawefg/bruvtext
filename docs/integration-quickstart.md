@@ -33,7 +33,7 @@ Create one text context for your app:
 
 ```cpp
 bruvtext::CreateInfo createInfo{};
-createInfo.assetsRoot = "external/bruvtext/assets";
+createInfo.assetsRoot = "external/bruvtext";
 
 bruvtext::Context* text = bruvtext::CreateContext(createInfo);
 ```

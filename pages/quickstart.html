@@ -52,23 +52,27 @@ target_link_libraries(my_app PRIVATE bruvtext)</code></pre>
             <p class="eyebrow">App Code</p>
             <h2>Queue text each frame</h2>
           </div>
-          <pre><code>bruvtext::ContextDesc desc{};
-desc.assetRoot = "third_party/bruvtext";
+          <pre><code>bruvtext::CreateInfo createInfo{};
+createInfo.assetsRoot = "third_party/bruvtext";
 
-bruvtext::Context* text = bruvtext::CreateContext(desc);
+bruvtext::Context* text = bruvtext::CreateContext(createInfo);
 bruvtext::FontId font = bruvtext::RegisterFont(
-    text, "assets/fonts/YourFont.ttf", "UI");
+    *text,
+    {
+        .debugName = "UI",
+        .filePath = "assets/fonts/YourFont.ttf",
+    });
 
-bruvtext::BeginFrame(text);
+bruvtext::BeginFrame(*text);
 bruvtext::DrawText(
-    text,
+    *text,
     font,
     "Hello",
     32.0f,
     64.0f,
     20.0f,
     bruvtext::Color{1.0f, 1.0f, 1.0f, 1.0f});
-bruvtext::EndFrame(text);</code></pre>
+bruvtext::EndFrame(*text);</code></pre>
         </section>
 
         <section class="doc-section">
@@ -76,11 +80,11 @@ bruvtext::EndFrame(text);</code></pre>
             <p class="eyebrow">Measurements</p>
             <h2>Use the library for layout math</h2>
           </div>
-          <pre><code>bruvtext::Vec2 size =
-    bruvtext::MeasureText(text, font, "Hello", 20.0f);
+          <pre><code>bruvtext::TextSize size =
+    bruvtext::MeasureText(*text, font, "Hello", 20.0f);
 
 float lineAdvance =
-    bruvtext::MeasureLineAdvance(text, font, 20.0f);</code></pre>
+    bruvtext::MeasureLineAdvance(*text, font, 20.0f);</code></pre>
           <div class="callout">
             `MeasureText` and `MeasureLineAdvance` are enough for basic centering,
             spacing, and line layout in caller code. The library does not try to

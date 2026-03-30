@@ -22,14 +22,15 @@ These are now mostly in place:
 3. there is a minimal CMake vendoring example
 4. the ownership split is stated near the top-level docs
 5. there is a dedicated vendoring guide
-6. a GitHub Pages-friendly docs home now exists in `docs/index.md`
+6. a separate GitHub Pages site now exists under `pages/`
 
 ## GitHub Pages
 
-GitHub Pages is now reasonable to enable from the `docs/` folder.
+GitHub Pages is now wired through GitHub Actions and publishes the `pages/`
+folder.
 
 Remaining presentation polish is optional:
 
-1. turn on Pages in the repo settings
-2. keep the docs home and README aligned
+1. keep the `pages/` site and README aligned
+2. tighten wording when technical behavior changes
 3. improve visual presentation only if it materially helps adoption
