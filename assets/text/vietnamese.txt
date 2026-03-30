@@ -1,0 +1,3 @@
+Tiếng Việt
+Chú bé nhỏ hỏi: “Tại sao gió đổi hướng rồi mà trời vẫn yên?” Đoạn này giúp
+kiểm tra dấu tiếng Việt, nhịp câu và khả năng hiển thị của phông chữ.

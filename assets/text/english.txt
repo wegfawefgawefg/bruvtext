@@ -1,0 +1,4 @@
+English
+The quick brown fox jumps over the lazy dog. This scaffold exists to prove that
+the repo can ship local fonts, local demo text, and a boring buildable demo.
+

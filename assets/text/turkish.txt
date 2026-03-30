@@ -1,0 +1,3 @@
+Türkçe
+Pijamalı hasta yağız şoföre çabucak güvendi. Bu metin Türkçe karakterleri,
+noktalama işaretlerini ve genel akışı doğrulamak için kullanılır.
